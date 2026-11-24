@@ -6,6 +6,7 @@
 #include "stingray/binary_writer.h"
 #include "stingray/cooked_resource.h"
 #include "stingray/murmur_hash.h"
+#include "stingray/volume_record.h"
 #include "stingray/physics/physx_cooking.h"
 #include "stingray/flow/flow_authoring.h"
 #include "stingray/flow/flow_resource.h"
@@ -1130,81 +1131,16 @@ bool write_volume_records(const Scene& scene, const std::vector<std::uint32_t>& 
             loop.push_back(step);
         }
         if (loop.size() != boundary) return fail("its bottom face must be one outline without holes");
-        std::vector<std::array<double, 2>> outline;
-        for (const auto i : loop) outline.push_back({points[i][0], points[i][1]});
-        const auto cross = [](const std::array<double, 2>& o, const std::array<double, 2>& p, const std::array<double, 2>& q) {
-            return (p[0] - o[0]) * (q[1] - o[1]) - (q[0] - o[0]) * (p[1] - o[1]);
-        };
-        for (std::size_t i = 0; i < outline.size() && outline.size() > 3;) {   // points on a straight edge add nothing
-            const auto n = outline.size();
-            if (std::abs(cross(outline[(i + n - 1) % n], outline[i], outline[(i + 1) % n])) < 1e-10) outline.erase(outline.begin() + static_cast<std::ptrdiff_t>(i));
-            else ++i;
-        }
-        double twice_area = 0.0;
-        for (std::size_t i = 0; i < outline.size(); ++i)
-            twice_area += outline[i][0] * outline[(i + 1) % outline.size()][1] - outline[(i + 1) % outline.size()][0] * outline[i][1];
-        if (twice_area < 0.0) std::reverse(outline.begin(), outline.end());
-        // ear clipping: n - 2 triangles over the outline's own points, like retail's
-        std::vector<std::array<std::uint32_t, 3>> floor;
-        std::vector<std::uint32_t> left(outline.size());
-        std::iota(left.begin(), left.end(), 0u);
-        while (left.size() > 3) {
-            bool clipped = false;
-            for (std::size_t i = 0; i < left.size() && !clipped; ++i) {
-                const auto p = left[(i + left.size() - 1) % left.size()], q = left[i], r = left[(i + 1) % left.size()];
-                if (cross(outline[p], outline[q], outline[r]) <= 1e-12) continue;
-                bool inside = false;
-                for (const auto o : left) {
-                    if (o == p || o == q || o == r) continue;
-                    if (cross(outline[p], outline[q], outline[o]) >= 0 && cross(outline[q], outline[r], outline[o]) >= 0 &&
-                        cross(outline[r], outline[p], outline[o]) >= 0) { inside = true; break; }
-                }
-                if (inside) continue;
-                floor.push_back({p, q, r});
-                left.erase(left.begin() + static_cast<std::ptrdiff_t>(i));
-                clipped = true;
-            }
-            if (!clipped) return fail("its bottom outline crosses itself");
-        }
-        floor.push_back({left[0], left[1], left[2]});
-        const auto count = static_cast<std::uint32_t>(outline.size());
-        float lo[3] = {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), static_cast<float>(z_lo)};
-        float hi[3] = {-lo[0], -lo[1], static_cast<float>(z_hi)};
-        for (const auto& p : outline)
-            for (int axis = 0; axis < 2; ++axis) {
-                lo[axis] = std::min(lo[axis], static_cast<float>(p[axis]));
-                hi[axis] = std::max(hi[axis], static_cast<float>(p[axis]));
-            }
-        const bool box = count == 4 && std::all_of(outline.begin(), outline.end(), [&](const std::array<double, 2>& p) {
-            return (std::abs(p[0] - lo[0]) < 1e-5 || std::abs(p[0] - hi[0]) < 1e-5) &&
-                   (std::abs(p[1] - lo[1]) < 1e-5 || std::abs(p[1] - hi[1]) < 1e-5);
-        });
-        std::vector<float> areas;
-        float total = 0.0f;
-        for (const auto& t : floor) {
-            areas.push_back(static_cast<float>(cross(outline[t[0]], outline[t[1]], outline[t[2]]) / 2.0));
-            total += areas.back();
-        }
-        const std::uint32_t triangle_offset = 0x40 + 8 * count;
-        const std::uint32_t shape_offset = box ? triangle_offset + 16 * static_cast<std::uint32_t>(floor.size()) : 0;
-        const std::uint32_t size = triangle_offset + 16 * static_cast<std::uint32_t>(floor.size()) + (box ? 8 : 0);
-        w.u32(source_node_refs[index]);
-        for (float v : lo) w.f32(v);
-        for (float v : hi) w.f32(v);
-        w.u32(id32_from_id64(volume.name));
-        w.f32(total);
-        w.u32(static_cast<std::uint32_t>(floor.size()));
-        w.u32(triangle_offset);
-        w.u32(shape_offset);
-        w.u64(0);                                         // the engine's PhysX shape, set at runtime
-        w.u32(count);
-        w.u32(size);
-        for (const auto& p : outline) { w.f32(static_cast<float>(p[0])); w.f32(static_cast<float>(p[1])); }
-        for (std::size_t t = 0; t < floor.size(); ++t) {
-            w.f32(areas[t]);
-            for (const auto i : floor[t]) w.u32(i);
-        }
-        if (box) { w.u32(1); w.u32(0); }
+        VolumeShape shape;
+        shape.frame = source_node_refs[index];
+        shape.name = id32_from_id64(volume.name);
+        for (const auto i : loop) shape.outline.push_back({points[i][0], points[i][1]});
+        shape.bottom = z_lo;
+        shape.top = z_hi;
+        std::vector<std::uint8_t> record;
+        std::string problem;
+        if (!make_volume_record(std::move(shape), true, record, problem)) return fail(problem == "the volume's outline crosses itself" ? "its bottom outline crosses itself" : problem);
+        for (const auto byte : record) w.u8(byte);
     }
     return true;
 }
@@ -1240,8 +1176,12 @@ void write_visibility_groups(const Scene& scene, BinaryWriter& w) {
 
 // MeshObject render flags as the game writes them (Stingray: 0x1 viewport visible, 0x2 shadow caster; Darktide
 // adds 0xc0000 with visibility and 0x2000): 0xc2003 visible + shadow, 0xc2001 visible only, 0x2002 shadow only.
-// The nearest render setting on the mesh's node or above it decides.
+// The nearest render setting on the mesh's node or above it decides. A decal's box is flagged visible only (0x1),
+// as the game's decal units are.
 std::uint32_t mesh_render_flags_for(const Scene& scene, const Primitive& primitive) {
+    if (primitive.material >= 0 && static_cast<std::size_t>(primitive.material) < scene.materials.size() &&
+        scene.materials[static_cast<std::size_t>(primitive.material)].shader_decal)
+        return 0x00000001u;
     const auto& settings = scene.asset_definition.render_settings;
     for (int node : {primitive.source_node, primitive.render_owner_node}) {
         for (int guard = 0; node >= 0 && static_cast<std::size_t>(node) < scene.nodes.size() && guard < 65536; ++guard) {
@@ -1419,7 +1359,13 @@ bool write_static_tail(BinaryWriter& w, const Scene& scene, const WriteOptions& 
         w.u64(resource);
     }
 
-    w.u64(0);
+    w.u32(0);
+    w.u32(static_cast<std::uint32_t>(options.material_layers.size()));
+    for (const auto& [layer, material] : options.material_layers) {
+        w.u32(static_cast<std::uint32_t>(id64(layer) >> 32));
+        w.u64(resource_name_hash(material));
+        w.u32(0);
+    }
     w.u64(0);
     w.u64(options.skeleton_resource.empty() ? 0u : resource_name_hash(options.skeleton_resource));
     w.u32(0);
@@ -1580,8 +1526,22 @@ bool build_unit_v115(const Scene& scene, UnitResource& out, std::string& error, 
 
     std::vector<std::uint8_t> primary_actor;
     if (options.fitted_physics) {
+        // the shape comes from full detail: meshes of a lower LOD level would be a second, coarser surface
+        std::vector<Primitive> detail;
+        for (const auto& primitive : scene.primitives) {
+            int lod = 0;
+            for (int node : {primitive.source_node, primitive.render_owner_node}) {
+                for (int guard = 0; node >= 0 && static_cast<std::size_t>(node) < scene.nodes.size() && guard < 65536 && !lod; ++guard) {
+                    for (const auto& level : scene.asset_definition.lod_levels)
+                        if (level.source_node == node) lod = level.level > 0 ? level.level : -1;
+                    node = scene.nodes[static_cast<std::size_t>(node)].parent;
+                }
+                if (lod) break;
+            }
+            if (lod <= 0) detail.push_back(primitive);
+        }
         physics::PhysicsActor actor;
-        if (!physics::build_actor(scene.primitives, "__glb_physics_actor__",
+        if (!physics::build_actor(detail, "__glb_physics_actor__",
                                                    root_text, root_name_hash,
                                                    *options.fitted_physics, actor, error) ||
             !physics::serialize_actor(actor, primary_actor, error)) return false;
@@ -1819,6 +1779,53 @@ bool build_unit_v115(const Scene& scene, UnitResource& out, std::string& error, 
                 for (const std::uint32_t slot : {3u, 4u}) {
                     const std::uint32_t value = node << 16 | (slot - 3u);
                     std::memcpy(record->data() + callbacks + 4 * slot, &value, 4);
+                }
+            }
+        // an actor_contact node is named in its actor's contact callbacks (start, stay, end touch: callback words
+        // 0..2, node << 16 | phase), on a UNIT actor record or a physics collection body (body records at the
+        // offset at +88 of the collection's closing 128-byte header, 72 bytes each: name at +4, callbacks at +48;
+        // retail gib pieces)
+        if (const auto* contacts = graph.find("physics_contacts"))
+            for (const auto& contact : contacts->items) {
+                const auto& actor = contact.find("actor")->string;
+                const auto node = static_cast<std::uint32_t>(contact.find("node")->number);
+                const auto& phases = contact.find("phases")->items;
+                const auto write = [&](std::uint8_t* callbacks) {
+                    for (std::uint32_t phase = 0; phase < 3; ++phase)
+                        if (phases[phase].boolean) {
+                            const std::uint32_t value = node << 16 | phase;
+                            std::memcpy(callbacks + 4 * phase, &value, 4);
+                        }
+                };
+                const auto hash = physics::template_id32(actor);
+                auto record = std::find_if(actor_records.begin(), actor_records.end(), [&](const auto& bytes) {
+                    std::uint32_t name = 0;
+                    if (bytes.size() >= 4) std::memcpy(&name, bytes.data(), 4);
+                    return name == hash;
+                });
+                bool found = false;
+                if (record != actor_records.end() && record->size() >= 28) {
+                    write(record->data() + record->size() - 4 - 24);
+                    found = true;
+                }
+                if (physics_scene.size() >= 128) {
+                    const std::size_t header = physics_scene.size() - 128;
+                    std::uint32_t bodies_at = 0, count = 0;
+                    std::memcpy(&bodies_at, physics_scene.data() + header + 88, 4);
+                    std::memcpy(&count, physics_scene.data() + header + 92, 4);
+                    const auto body_hash = id32_from_id64(actor);
+                    for (std::uint32_t b = 0; b < count && bodies_at + 72ull * (b + 1) <= header; ++b) {
+                        std::uint8_t* body_record = physics_scene.data() + bodies_at + 72u * b;
+                        std::uint32_t name = 0;
+                        std::memcpy(&name, body_record + 4, 4);
+                        if (name != body_hash) continue;
+                        write(body_record + 48);
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    error = "unit flow: the actor_contact node watches actor '" + actor + "', which the unit doesn't have";
+                    return false;
                 }
             }
     }

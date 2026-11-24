@@ -90,9 +90,54 @@ Not in the list? Type any of the game's materials into game material under it in
 
 Some settings only have a hash for a name, like `#1234abcd`, they work the same. The shader itself is copied into your asset too, so it works anywhere, not just where the game happens to have it loaded. Unlit color draws its color as raw brightness: around 0.1 per channel is a full color, 1 and up blows out to white.
 
+Enemy skin is the shader the game's enemy bodies use. On an enemy it shows the game's wounds where it gets hit, plus burning, electrocution and dissolving. `bcm`, `nm` and `orm` are your color, normal and orm images.
+
 The weapon with coatings shader is what the game's own weapons use for weapon skins: `base_bc`, `base_nm` and `base_orm` are your color, normal and orm images and `coat_mask` says where the skin goes (white = skin). The weapon shader is the same without skins.
 
+### Your own shaders
+
+Want something none of the game's shaders do (a scrolling glow, a mask that cuts out holes, color that changes with height, time or the view angle)? Set the material intent to own shader and write the shader yourself, in HLSL like stingray's shader code:
+
+1. In the active material panel set the intent to own shader and press the new file button next to code. That makes a text with a starting shader, a `tint` parameter and a `color` texture.
+2. Open a text editor in blender (any area, switch it to text editor) and pick that text. Edit it there.
+3. Parameters are values your code reads by name: give each a name, how many numbers (1 for a single value, 3 for a color...) and its value. Tick the color button to pick it as a color.
+4. Textures are images of this material: give each a name and pick which image it is (the one in base color, the normal map, the orm or emission), the code then reads it with `sample_<name>(uv)`. Put the images into the normal principled setup first, same as for game shaders.
+5. Build like normal. A mistake in the code stops the build and the build log says the line (`surface:12` is line 12 of your text).
+
+The code is one function that fills in the surface, everything you leave out keeps its default:
+
+```hlsl
+void surface(SurfaceInput i, inout Surface s)
+{
+    float4 color = sample_color(i.uv);
+    s.base_color = color.rgb * tint;                    // color
+    s.roughness = 0.5;
+    s.metallic = 0.0;
+    float band = frac(i.world_position.z - i.time);    // a glowing band moving up
+    s.emissive = float3(4, 1.5, 0.3) * step(0.9, band);
+}
+```
+
+- what you get in `i`: `uv`, `world_position`, `normal`, `tangent`, `bitangent`, `view_direction` (towards the camera), `time` (seconds) and `front_face`.
+- what you set in `s`: `base_color`, `opacity`, `normal`, `roughness`, `metallic`, `ao` and `emissive` (glow, it gets the level's glow brightness on top like the game's glowing stuff).
+- normal maps: `s.normal = tangent_to_world(i, unpack_normal(sample_nm(i.uv)));` with a texture `nm` set to the normal map.
+- clip by opacity cuts away everything where `s.opacity` is under the cutoff, in the shadow too (fences, leaves, holes).
+- double-sided draws the back faces with the same shader (no extra triangles here), the back sees the normal flipped.
+
+It's lit, casts shadows, works on skinned meshes and the textures stream in like the game's own. Parameters can be changed from your mod while the unit is out there, by their name: `Unit.set_scalar_for_materials(unit, "band_speed", 2, true)`, `Unit.set_vector3_for_materials(unit, "tint", Vector3(1, 0, 0), true)`.
+
 Texture transforms: offsets, 90 degree turns and flips are fine, fractional scaling and odd rotations are not.
+
+### Decals
+
+Tick Decal on an own shader and put that material on a box. In game the box paints your code's color onto whatever is inside it (walls, floors, crates), like the game's blood and scorch marks: it's lit like the surface under it and leaves weapons and characters alone.
+
+- it projects along the box's Y axis (blender's green arrow), so point Y into the wall. The image's top is the box's Z.
+- `i.uv` runs over the box's X and Z, `i.normal` is the normal of the surface it lands on.
+- only `base_color` and `opacity` count: `s.opacity` is how much of your color covers the surface (use your texture's alpha). The surface keeps its own bumps, roughness and shine.
+- make the box as deep as the bumps you want to cover, it only paints what's inside it.
+
+From lua you place it like any unit, with Y into the surface, and `Unit.set_local_scale(unit, 1, Vector3(2, 2, 2))` makes it twice as big.
 
 ## Loose textures (recolors and texture swaps)
 
@@ -139,6 +184,24 @@ Type a name into visibility group on an object (active object panel) and its mes
 
 Single meshes go by the object name plus `_p0` (and `_p1`, `_p2`... for the extra materials on the same object), so an object called `lid` is `Unit.set_mesh_visibility(unit, "lid_p0", false)` and `Mesh.material(Unit.mesh(unit, "lid_p0"), 1)` gets its own copy of the material to change, without touching the other meshes.
 
+## More units in one asset
+
+An empty with a name in own unit (active object panel) and everything parented under it compile as a unit of its own, next to the asset in the same folder and package: `content/mods/<your mod>/<that name>`. The empty is the new unit's origin. It uses the same materials and textures as the rest of the asset, so they're only in there once. Handy for anything a mod spawns in pieces (gibs, debris, props that belong together), one folder instead of one per piece. Your mod spawns them by that name like any other unit, the package is the asset's.
+
+Things that belong to one unit (its flow, unit data, collision) go on objects under its empty. The rest of the asset is the main unit like before.
+
+## Outlines (like tagged enemies)
+
+Tick enemy outline layers in the asset panel and your unit gets the game's enemy outline, switched on from lua:
+
+```lua
+Unit.set_material_layer(unit, "minion_outline", true)                  -- outline where you can see it
+Unit.set_material_layer(unit, "minion_outline_reversed_depth", true)   -- outline through walls and other models
+Unit.set_vector3_for_material(unit, "minion_outline", "outline_color", Vector3(1, 0.5, 0))
+```
+
+`false` turns them off again. The outline materials are the game's own and they're loaded whenever any enemy is around, so use it in missions or the psykhanium, not in the hub. Material layers takes more layers of your own as `name=material` (separate them with `;`), the material being a resource path or `#ID[` plus its 16 digit hash `]`.
+
 ## Flow (things that happen by themselves or on an event)
 
 Flow is the little node graph a unit carries, same idea as the flow editor in stingray. It's how game units start their effects when they spawn or hide a part when a script tells them to.
@@ -153,6 +216,7 @@ The nodes:
 - Unit Unspawned: fires when the unit gets destroyed, e.g. to leave an effect behind.
 - Flow Event: fires when your mod calls `Unit.flow_event(unit, "name")`. Type the name on the node.
 - Trigger Volume: fires enter when a player moves into one of the unit's trigger colliders and leave when they move out. Type the collider's name on the node (the object name, or its actor name if you set one).
+- Actor Contact: fires start when one of the unit's bodies touches something, stay while it does and end when it stops. Type the body's name on the node. Its outputs are where (position, normal), how hard (impulse), and what it hit (other actor, other unit). The game's flying gibs use start for the blood splat where they land: a Call Lua to `blood_ball_collision` with `colliding_actor:actor, collision_position:vector3, collision_normal:vector3, blood_type:string` (blood type `default` or `poxwalker`).
 - Particle Effect: create plays it, stop stops spawning new particles, kill removes it. `effect` is the resource name of a particle effect on an empty in this same asset (just the name you gave it), or a full path. `object` is the node it sits on, e.g. the name of an empty. With orphaned policy 0 (destroy, the default) the effect goes away when the unit does, 1 (stop) lets the last particles finish, 2 (unlink) leaves it running where it is.
 - Set Visibility: shows or hides a visibility group (empty group = the whole unit).
 - Animation Event: sends an event to the unit's state machine.
@@ -165,7 +229,7 @@ The nodes:
 - Get Mesh, Get Material, Set Material Variable: change a material while the unit is out there. Get Mesh takes the object's name, Get Material the material's name (both as named in blender; an object with several materials is one mesh per material, the name gives the first, `name_p1` the second and so on), Set Material Variable the variable. Glowing materials with textures or a base color have `intensity` (brightness) and `emissive_color`, a plain emission shader material has `emissive_intensity_lumen` and `emissive_color`, and a game shader material has the names its settings list shows. Pick number or color / vector on it for the kind of value.
 - Get Unit Data (bool / number): reads a value from the unit's data (see Unit data), e.g. into a Branch.
 - Get Light, Set Light Intensity, Set Light Color: change a lamp of the unit while it's out there, e.g. a flickering or alarm light. Get Light takes the lamp's name in blender. Intensity is in the same units as the export (blender watts times 60), color is red, green, blue from 0 to 1.
-- Call Lua: runs a lua function when its event comes in. Type the function name, then list what it gets under inputs and what it gives back under outputs as `name:kind` with commas, e.g. `unit:unit, amount:float` (kinds: unit, bool, uint, float, vector3, quaternion, string, name). Every name becomes a socket. Under events list the output events, `out` by default.
+- Call Lua: runs a lua function when its event comes in. Type the function name, then list what it gets under inputs and what it gives back under outputs as `name:kind` with commas, e.g. `unit:unit, amount:float` (kinds: unit, bool, uint, float, vector3, quaternion, string, name, actor). Every name becomes a socket. Under events list the output events, `out` by default.
 
 A unit input you leave unconnected means the unit itself.
 
@@ -240,7 +304,7 @@ Particle effects live on an empty. You can build one from scratch or start from 
    - curves are normal blender curves and colors are color ramps. The game draws straight lines between the points, up to 10 of them
    - the type button on each item swaps it for another type, the arrows reorder, x removes
 5. Click "Preview" to watch it in the 3d view. It runs the effect the way the game does and restarts by itself when a short effect is done, every edit restarts it too. The sprites are drawn with their material's own shader from the game, so you see the real texture, flipbook, color ramp and glow (that needs the game files extract, without it they show as soft dots). What the game takes from the level isn't there: no fog, no shadows, no fading into walls, and lit smoke gets a plain white light. Mesh, light, ribbon and gpu visualizers aren't drawn, the panel lists anything the preview skips.
-6. Click "Load" under materials to see every material the effect draws with, its current values and its texture channels. Click a texture channel to open that game texture as an image. Change what you want: values like `#423d7a88=0.04,1,0,1` (names the addon can't read show as `#1234abcd`, they work all the same), textures like `diffuse_map=//my_spark.png` (`//` means next to your .blend).
+6. Click "Load" under materials to see every material the effect draws with, its current values and its texture channels. Click a texture channel to open that game texture as an image. Change what you want: values like `#423d7a88=0.04,1,0,1` (names the addon can't read show as `#1234abcd`, they work all the same), textures like `diffuse_map=//my_spark.png` (`//` means next to your .blend). Some shaders have a colour written into their code instead of a value or texture (changing the values does nothing to it). "Shader numbers" changes numbers in the shader's code itself, old=new, like `0.0120000001=0.04` (write the old number with all 9 digits so it's the exact one). The compiler puts the changed code in the asset's own copy of the shader, the game's stays as it is, and it stops with an error if the shader has no such number.
 7. Compile. The effect gets the resource name you see on the empty, in your asset's folder.
 
 Heads up: a billboard's vertex channels have to match what its material's shader reads, so when you swap the material, take the vertex channels and writers from a game effect that uses that material (import it on a spare empty and copy them over).
@@ -474,11 +538,24 @@ An enemy is two things: the breed (how it behaves, its health, what it attacks w
    An attack plays once, so it needs an exit event back to idle (step 6 of the state machine). To check it, click "Play State Machine": with that many events you get a search box instead of buttons, type part of an event like `attack` and send it, and see if your state plays. The breed files (`scripts/settings/breed/breed_actions/` in the game's source) list exactly which event each action sends.
 6. Pick one of the two below, then compile.
 
+### Gibs
+
+When the game knocks a limb or head off an enemy it shrinks that bone of the enemy to nothing, throws a piece and puts a stump on what's left. Your body shrinks with it (it's on the same bones), the piece and stump you make yourself:
+
+1. Your body has to be rigged to the enemy's skeleton (see above).
+2. In the game unit panel pick the breed under gibs like (which bones come off and where the stumps go is per breed) and click "Make Gibs".
+
+It cuts your body by its weights at every bone the game knocks off: everything weighted to that bone and below becomes a piece, with a body the game throws around, and where it was cut both the piece and the body get closed with the game's gore. The piece also leaves a blood splat where it lands and makes the game's impact sound. They're own units of the asset (see more units in one asset), named like your asset plus `_gib_leftarm`, `_stump_leftarm` and so on. The game's blood sprays, sounds, wounds and burning work on them like on its own gibs. Click it again after changing the body, the X removes them.
+
+Meshes that are separate where a limb comes off (a sleeve that's its own object, a box per limb) leave no hole, so there's nothing to close and no stump. The piece still flies.
+
+A breed you make (below) takes these gibs.
+
 ### Your own breed (EXPERIMENTAL)
 
 Tick make a breed (EXPERIMENTAL) in the game unit panel, give it a lowercase name like `my_walker` and pick what it behaves like under behaves like ("Import Game Collision (EXPERIMENTAL)" already picked the one that matches the game unit). Then:
 
-- body: own body (default) only hangs the game breed's weapons on your model. Its other body pieces, wounds, gibbing and dissolving are left off, those only work on the game's own body pieces. game body pieces too keeps all of that on top of your model
+- body: own body (default) only hangs the game breed's weapons on your model. Its other body pieces, wounds and dissolving are left off, those only work on the game's own body pieces. Gibbing is off too unless you made gibs (see gibs above), then it's yours. game body pieces too keeps all of that on top of your model
 - health: one number is its health on the easiest difficulty, the harder ones scale like the game breed's (a poxwalker has 150, so 300 is double on every difficulty). Five numbers set every difficulty yourself. Empty keeps the game breed's
 - walk and run speed in meters per second, 0 keeps the game breed's
 - hit zone group on each hit zone (collision and physics panel): what a hit there counts as. From the game breed uses what the game breed has for that name (c_head is head). Your own extra hit zones (a tail, a second head) need a group
@@ -537,7 +614,7 @@ Third party licenses are in `licenses/` and `THIRD_PARTY_LICENSES.txt`.
 
 Stuff it can't quite do yet but that's being worked on:
 
-- Your own shaders. Right now materials use the game's shaders (the generated ones, weapon materials and game shader picks). Writing a shader of your own, from code or nodes, isn't there yet.
+- More for own shaders: building them from blender's shader nodes instead of code, see-through ones, moving the vertices from the code, more textures than the four material images, and showing up in ray traced reflections.
 - Player armour and clothing shaders, the ones with the cosmetic color options.
 - New particle shaders. Effects use the game's particle materials, with your own values and textures.
 - More flow nodes: sub-flows, two-unit events and the remaining light settings (temperature, falloff) among others.

@@ -17,7 +17,7 @@ namespace {
 
 // Payload layouts of the game's flow nodes (from the node handlers in the game exe and the retail graphs). Every word is a byte offset into the dynamic data, 0xffffffff when unset, except
 // the inline output-event lists {count, node | in_event << 16 ...}.
-enum class Kind { Unit, Bool, U32, Float, Vector3, Quaternion, String, Name, Mesh, Material, Light };
+enum class Kind { Unit, Bool, U32, Float, Vector3, Quaternion, String, Name, Mesh, Material, Light, Actor };
 enum class Role { Input, Output, State, Events, Unset, Zero };
 
 struct Slot {
@@ -36,6 +36,9 @@ struct NodeSpec {
     // computes values only, no events: a node reading its output lists it in its query list (at the end of its
     // payload, {count, node | 0xffff << 16}) and the engine runs it, and its own query list, first
     bool getter = false;
+    // the outputs are fields of one block the engine fills (byte offsets), named by a single payload word
+    std::vector<std::uint32_t> block{};
+    std::uint32_t block_size = 0;
 };
 
 const std::vector<NodeSpec>& specs() {
@@ -49,6 +52,16 @@ const std::vector<NodeSpec>& specs() {
         // (retail b11d4026ca356550: [slot, enter list, leave list])
         {"physics_trigger", 0x0c, {{Role::State, "", Kind::Quaternion}, {Role::Events, "enter", Kind::U32},
                                    {Role::Events, "leave", Kind::U32}}, {}, true},
+        // fired by the engine when one of the unit's actors touches something (World::process_physics_events): the
+        // actor names this node in its contact callbacks (start, stay, end touch). The 52-byte block is the
+        // engine's ContactEvent: actor, other actor, other unit, point, normal, separation, impulse (retail gib
+        // pieces: start -> FlowCallbacks.blood_ball_collision, the splat where a limb lands)
+        {"actor_contact", 0x0d, {{Role::Output, "actor", Kind::Actor}, {Role::Output, "other_actor", Kind::Actor},
+                                 {Role::Output, "other_unit", Kind::Unit}, {Role::Output, "position", Kind::Vector3},
+                                 {Role::Output, "normal", Kind::Vector3}, {Role::Output, "separation", Kind::Float},
+                                 {Role::Output, "impulse", Kind::Vector3}, {Role::Events, "start", Kind::U32},
+                                 {Role::Events, "stay", Kind::U32}, {Role::Events, "end", Kind::U32}},
+         {}, true, false, {0, 4, 8, 12, 24, 36, 40}, 52},
         {"particle_effect", 0x0b,
          {{Role::Input, "effect", Kind::String, true}, {Role::Input, "object", Kind::Name},
           {Role::Input, "linked", Kind::Bool}, {Role::Input, "orphaned_policy", Kind::U32},
@@ -131,19 +144,20 @@ const char* kind_name(Kind kind) {
         case Kind::Mesh: return "mesh";
         case Kind::Material: return "material";
         case Kind::Light: return "light";
+        case Kind::Actor: return "actor";
     }
     return "";
 }
 
 bool parse_kind(const std::string& text, Kind& kind) {
     for (const Kind candidate : {Kind::Unit, Kind::Bool, Kind::U32, Kind::Float, Kind::Vector3, Kind::Quaternion,
-                                 Kind::String, Kind::Name})
+                                 Kind::String, Kind::Name, Kind::Actor})
         if (text == kind_name(candidate)) { kind = candidate; return true; }
     return false;
 }
 
 // The Lua flow node's value types (engine push_c_variable_to_lua): 1 unit, 4 vector3, 5 number, 6 bool, 7 string,
-// 8 id64 (passed as its name), 9 quaternion, 10 integer.
+// 8 id64 (passed as its name), 9 quaternion, 10 integer, 2 actor (retail blood_ball_collision's colliding_actor).
 std::uint32_t lua_type(Kind kind) {
     switch (kind) {
         case Kind::Unit: return 1;
@@ -154,6 +168,7 @@ std::uint32_t lua_type(Kind kind) {
         case Kind::Name: return 8;
         case Kind::Quaternion: return 9;
         case Kind::U32: return 10;
+        case Kind::Actor: return 2;
         case Kind::Mesh:
         case Kind::Material:
         case Kind::Light: return 0;   // not passed to Lua (parse_kind does not offer them)
@@ -255,7 +270,8 @@ bool constant_slot(Dynamic& dynamic, Kind kind, const json::Value& value, std::u
         case Kind::Mesh:
         case Kind::Material:
         case Kind::Light:
-            error = std::string("a ") + kind_name(kind) + " input takes a connection, not a value";
+        case Kind::Actor:
+            error = std::string(kind == Kind::Actor ? "an " : "a ") + kind_name(kind) + " input takes a connection, not a value";
             return false;
     }
     return false;
@@ -353,7 +369,7 @@ bool build_graph(const json::Value& authored, json::Value& graph, std::string& e
             for (const auto& [name, kind_text] : list->members) {
                 Kind kind;
                 if (name.empty() || name == "node_id" || name.find('\0') != std::string::npos || name.find('.') != std::string::npos) { error = where + " has an invalid name '" + name + "' (node_id is set by the game)"; return false; }
-                if (!kind_text.is_string() || !parse_kind(kind_text.string, kind)) { error = where + " " + name + ": kind must be unit, bool, uint, float, vector3, quaternion, string or name"; return false; }
+                if (!kind_text.is_string() || !parse_kind(kind_text.string, kind)) { error = where + " " + name + ": kind must be unit, bool, uint, float, vector3, quaternion, string, name or actor"; return false; }
                 if (!names.insert(name).second) { error = where + " uses '" + name + "' twice"; return false; }
                 spec.layout.push_back({role, lua_names.emplace_back(name).c_str(), kind});
             }
@@ -409,8 +425,15 @@ bool build_graph(const json::Value& authored, json::Value& graph, std::string& e
     Dynamic dynamic;
     // outputs and internal state first, so connections can point at them
     for (auto& node : nodes) {
+        if (node.spec->block_size) {
+            const auto block = dynamic.allocate(node.spec->block_size, 4);
+            node.slots["#block"] = block;
+            std::size_t field = 0;
+            for (const auto& slot : node.spec->layout)
+                if (slot.role == Role::Output) node.slots[slot.name] = block + node.spec->block[field++];
+        }
         for (const auto& slot : node.spec->layout) {
-            if (slot.role == Role::Output) node.slots[slot.name] = new_slot(dynamic, slot.kind);
+            if (slot.role == Role::Output && !node.spec->block_size) node.slots[slot.name] = new_slot(dynamic, slot.kind);
             if (slot.role == Role::State) {
                 const auto offset = new_slot(dynamic, slot.kind);
                 node.slots[std::string("#state") + slot.name] = offset;
@@ -513,6 +536,7 @@ bool build_graph(const json::Value& authored, json::Value& graph, std::string& e
 
     graph = json::Value::object();
     auto triggers = json::Value::array();
+    auto contacts = json::Value::array();
     auto events = std::vector<std::pair<std::uint32_t, std::uint32_t>>{{id32_from_id64("unit_spawned"), static_cast<std::uint32_t>(spawned)}};
     auto node_out = json::Value::array();
     for (std::size_t i = 0; i < nodes.size(); ++i) {
@@ -536,6 +560,20 @@ bool build_graph(const json::Value& authored, json::Value& graph, std::string& e
             trigger.set("node", number(static_cast<std::uint32_t>(i)));
             trigger.set("actor", json::Value::of(actor->string));
             triggers.push(std::move(trigger));
+        }
+        if (std::string(node.spec->name) == "actor_contact") {
+            const auto* actor = node.source->find("actor");
+            if (!actor || !actor->is_string() || actor->string.empty()) { error = "actor_contact node '" + node.id + "' needs the actor it watches"; return false; }
+            auto contact = json::Value::object();
+            contact.set("node", number(static_cast<std::uint32_t>(i)));
+            contact.set("actor", json::Value::of(actor->string));
+            auto used = json::Value::array();
+            for (const char* phase : {"start", "stay", "end"}) {
+                const auto found = node.links.find(phase);
+                used.push(json::Value::of(found != node.links.end() && !found->second.empty()));
+            }
+            contact.set("phases", std::move(used));
+            contacts.push(std::move(contact));
         }
         auto words = json::Value::array();
         auto record_offsets = json::Value::array();
@@ -600,6 +638,12 @@ bool build_graph(const json::Value& authored, json::Value& graph, std::string& e
             switch (slot.role) {
                 case Role::Input:
                 case Role::Output: {
+                    if (slot.role == Role::Output && node.spec->block_size) {
+                        if (std::string(slot.name) == std::find_if(node.spec->layout.begin(), node.spec->layout.end(),
+                                [](const Slot& s) { return s.role == Role::Output; })->name)
+                            words.push(number(node.slots.at("#block")));
+                        break;
+                    }
                     const auto found = node.slots.find(slot.name);
                     words.push(number(found == node.slots.end() ? 0xffffffffu : found->second));
                     break;
@@ -651,6 +695,7 @@ bool build_graph(const json::Value& authored, json::Value& graph, std::string& e
     graph.set("lists", std::move(empty_lists));
     graph.set("nodes", std::move(node_out));
     if (!triggers.items.empty()) graph.set("physics_triggers", std::move(triggers));
+    if (!contacts.items.empty()) graph.set("physics_contacts", std::move(contacts));
     std::string hex;
     for (const auto byte : dynamic.bytes) { char pair[3]; std::snprintf(pair, sizeof(pair), "%02x", byte); hex += pair; }
     graph.set("dynamic_data", json::Value::of(hex));

@@ -219,163 +219,6 @@ DXGI_FORMAT dds_format(const std::vector<std::uint8_t>& dds) {
 }
 #endif
 
-#ifdef _WIN32
-HMODULE load_oodle_module(const std::filesystem::path& path, DWORD* failure = nullptr) {
-    DWORD old_mode = 0;
-    const bool changed = SetThreadErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX,
-                                            &old_mode) != 0;
-    HMODULE module = LoadLibraryW(path.c_str());
-    const DWORD load_error = module ? ERROR_SUCCESS : GetLastError();
-    if (changed) SetThreadErrorMode(old_mode, nullptr);
-    if (failure) *failure = load_error;
-    return module;
-}
-
-std::filesystem::path oodle_config_file() {
-    const auto env_path = [](const wchar_t* name) {
-        const DWORD needed = GetEnvironmentVariableW(name, nullptr, 0);
-        if (!needed) return std::filesystem::path{};
-        std::vector<wchar_t> value(needed);
-        const DWORD copied = GetEnvironmentVariableW(name, value.data(), needed);
-        return copied && copied < needed ? std::filesystem::path(value.data()) : std::filesystem::path{};
-    };
-    auto root = env_path(L"DARKTIDE_OODLE_CONFIG_DIR");
-    if (root.empty()) root = env_path(L"LOCALAPPDATA");
-    if (root.empty()) return {};
-    if (GetEnvironmentVariableW(L"DARKTIDE_OODLE_CONFIG_DIR", nullptr, 0)) return root / L"oodle_path.txt";
-    return root / L"DarktideGLBCompiler" / L"oodle_path.txt";
-}
-
-std::filesystem::path oodle_dll_from_input(const std::filesystem::path& input) {
-    std::error_code ec;
-    if (std::filesystem::is_directory(input, ec)) return input / L"binaries" / L"oo2core_9_win64.dll";
-    return input;
-}
-
-bool valid_oodle_dll(const std::filesystem::path& path, std::string& error) {
-    DWORD load_error = ERROR_SUCCESS;
-    HMODULE module = load_oodle_module(path, &load_error);
-    if (!module) {
-        error = "cannot load Oodle DLL at " + path.string() + " (Windows error " + std::to_string(load_error) + ")";
-        return false;
-    }
-    const bool exports = GetProcAddress(module, "OodleLZ_GetCompressedBufferSizeNeeded") &&
-        GetProcAddress(module, "OodleLZ_Compress") && GetProcAddress(module, "OodleLZ_Decompress");
-    FreeLibrary(module);
-    if (!exports) error = "Oodle DLL is missing required exports: OodleLZ_GetCompressedBufferSizeNeeded, OodleLZ_Compress, OodleLZ_Decompress";
-    return exports;
-}
-
-class DarktideOodle {
-public:
-    using BoundFn = std::size_t (WINAPI*)(int, long long);
-    using CompressFn = long long (WINAPI*)(int, const void*, long long, void*, int, const void*, const void*, const void*, void*, long long);
-    using DecompressFn = long long (WINAPI*)(const void*, long long, void*, long long, int, int, int, void*, long long, void*, void*, void*, long long, int);
-
-    ~DarktideOodle() { if (module_) FreeLibrary(module_); }
-    DarktideOodle(const DarktideOodle&) = delete;
-    DarktideOodle& operator=(const DarktideOodle&) = delete;
-    DarktideOodle() = default;
-
-    bool load(std::string& error) {
-        std::vector<std::filesystem::path> candidates;
-        std::string candidate_error;
-        auto env_path = [](const wchar_t* name) -> std::filesystem::path {
-            const DWORD needed = GetEnvironmentVariableW(name, nullptr, 0);
-            if (!needed) return {};
-            std::vector<wchar_t> value(needed);
-            const DWORD copied = GetEnvironmentVariableW(name, value.data(), needed);
-            if (!copied || copied >= needed) return {};
-            return std::filesystem::path(value.data());
-        };
-        const auto explicit_dll = env_path(L"DARKTIDE_OODLE_DLL");
-        const auto game_root = env_path(L"DARKTIDE_GAME_ROOT");
-        const bool explicit_override = !explicit_dll.empty() || !game_root.empty();
-        if (!explicit_dll.empty()) {
-            candidates.push_back(explicit_dll);
-        } else if (!game_root.empty()) {
-            candidates.push_back(game_root / L"binaries" / L"oo2core_9_win64.dll");
-        } else {
-            std::vector<wchar_t> executable_path(32768);
-            const DWORD executable_length = GetModuleFileNameW(nullptr, executable_path.data(),
-                static_cast<DWORD>(executable_path.size()));
-            if (executable_length && executable_length < executable_path.size()) {
-                candidates.push_back(std::filesystem::path(executable_path.data(), executable_path.data() + executable_length)
-                    .parent_path() / L"oo2core_9_win64.dll");
-            }
-            const auto config = oodle_config_file();
-            if (!config.empty()) {
-                std::ifstream saved(config, std::ios::binary);
-                std::string utf8_path;
-                if (saved && std::getline(saved, utf8_path) && !utf8_path.empty()) {
-                    try {
-                        if (utf8_path.find('\0') != std::string::npos) throw std::runtime_error("path contains NUL");
-                        candidates.push_back(std::filesystem::u8path(utf8_path));
-                    } catch (const std::exception&) {
-                        candidate_error = "Saved Oodle path is invalid UTF-8; rerun --configure-oodle with the game's binaries folder or DLL";
-                    }
-                }
-            }
-            // cant ship oodle ourselves so just go look where steam usually puts the game
-            const auto program_files = env_path(L"ProgramFiles(x86)");
-            if (!program_files.empty()) candidates.push_back(program_files / L"Steam" / L"steamapps" / L"common" / L"Warhammer 40,000 DARKTIDE" / L"binaries" / L"oo2core_9_win64.dll");
-        }
-
-        for (const auto& raw_candidate : candidates) {
-            const auto candidate = oodle_dll_from_input(raw_candidate);
-            DWORD load_error = ERROR_SUCCESS;
-            module_ = load_oodle_module(candidate, &load_error);
-            if (!module_) {
-                if (explicit_override) candidate_error = "Explicit Oodle location could not be loaded at " + candidate.string() +
-                    " (Windows error " + std::to_string(load_error) + ")";
-                continue;
-            }
-            bound_ = reinterpret_cast<BoundFn>(GetProcAddress(module_, "OodleLZ_GetCompressedBufferSizeNeeded"));
-            compress_ = reinterpret_cast<CompressFn>(GetProcAddress(module_, "OodleLZ_Compress"));
-            decompress_ = reinterpret_cast<DecompressFn>(GetProcAddress(module_, "OodleLZ_Decompress"));
-            if (bound_ && compress_ && decompress_) return true;
-            candidate_error = "Oodle DLL is missing required exports at " + candidate.string();
-            FreeLibrary(module_); module_ = nullptr;
-        }
-        error = "Darktide Oodle DLL was not found or could not be loaded. Run --configure-oodle <game directory or oo2core_9_win64.dll>; "
-            "or set DARKTIDE_OODLE_DLL / DARKTIDE_GAME_ROOT. Expected oo2core_9_win64.dll under the game's binaries directory.";
-        if (explicit_override) error = candidate_error + ". Correct DARKTIDE_OODLE_DLL or DARKTIDE_GAME_ROOT and retry.";
-        else if (!candidate_error.empty()) error = candidate_error + ". Reconfigure with the installed game's oo2core_9_win64.dll.";
-        return false;
-    }
-
-    bool compress_roundtrip(const std::vector<std::uint8_t>& input, std::vector<std::uint8_t>& packed, const char* label, std::string& error) const {
-        if (input.empty() || input.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max())) { error = std::string("invalid Oodle input for ") + label; return false; }
-        constexpr int kKraken = 8;
-        constexpr int kNormal = 4;
-        const auto bound = bound_(kKraken, static_cast<long long>(input.size()));
-        if (!bound) { error = std::string("Oodle returned an invalid compression bound for ") + label; return false; }
-        std::vector<std::uint8_t> output(bound);
-        const auto written = compress_(kKraken, input.data(), static_cast<long long>(input.size()), output.data(), kNormal, nullptr, nullptr, nullptr, nullptr, 0);
-        if (written <= 0 || static_cast<std::size_t>(written) > output.size()) { error = std::string("Oodle compression failed for ") + label; return false; }
-        output.resize(static_cast<std::size_t>(written));
-        std::vector<std::uint8_t> restored(input.size());
-        const auto decoded = decompress_(output.data(), written, restored.data(), static_cast<long long>(restored.size()), 1, 1, 0, nullptr, 0, nullptr, nullptr, nullptr, 0, 3);
-        if (decoded != static_cast<long long>(input.size()) || restored != input) { error = std::string("Oodle round-trip validation failed for ") + label; return false; }
-        packed = std::move(output);
-        return true;
-    }
-
-    bool decompress(const std::uint8_t* input, std::size_t size, std::vector<std::uint8_t>& output, std::string& error) const {
-        const auto decoded = decompress_(input, static_cast<long long>(size), output.data(), static_cast<long long>(output.size()),
-                                         1, 0, 0, nullptr, 0, nullptr, nullptr, nullptr, 0, 3);
-        if (decoded != static_cast<long long>(output.size())) { error = "Oodle could not unpack the texture"; return false; }
-        return true;
-    }
-
-private:
-    HMODULE module_ = nullptr;
-    BoundFn bound_ = nullptr;
-    CompressFn compress_ = nullptr;
-    DecompressFn decompress_ = nullptr;
-};
-#endif
-
 std::vector<std::vector<std::uint8_t>> tile_surface(std::uint32_t width,std::uint32_t height,const std::vector<std::uint8_t>& payload,std::uint32_t block,std::string& error){
     const std::uint32_t bw=width/4,bh=height/4,cbw=block==8?128u:64u,cbh=64;if(!surface_is_tileable(width,height,block)){error="external texture mip does not divide into 64 KiB chunks";return{};}const std::size_t row=static_cast<std::size_t>(bw)*block,crow=static_cast<std::size_t>(cbw)*block;std::vector<std::vector<std::uint8_t>> chunks;for(std::uint32_t by=0;by<bh;by+=cbh)for(std::uint32_t bx=0;bx<bw;bx+=cbw){std::vector<std::uint8_t> c;c.reserve(65536);const auto x=static_cast<std::size_t>(bx)*block;for(std::uint32_t r=0;r<cbh;++r){const auto s=static_cast<std::size_t>(by+r)*row+x;c.insert(c.end(),payload.begin()+static_cast<std::ptrdiff_t>(s),payload.begin()+static_cast<std::ptrdiff_t>(s+crow));}if(c.size()!=65536){error="external texture chunk is not 64 KiB";return{};}chunks.push_back(std::move(c));}return chunks;
 }
@@ -383,101 +226,6 @@ std::vector<std::vector<std::uint8_t>> tile_surface(std::uint32_t width,std::uin
 bool write_file(const std::filesystem::path&p,const std::vector<std::uint8_t>&b,std::string&error){std::error_code ec;std::filesystem::create_directories(p.parent_path(),ec);std::ofstream f(p,std::ios::binary);if(!f){error="cannot open texture output: "+p.string();return false;}f.write(reinterpret_cast<const char*>(b.data()),static_cast<std::streamsize>(b.size()));if(!f){error="failed writing texture output: "+p.string();return false;}return true;}
 
 } // namespace
-
-bool oodle_compress(const std::vector<std::uint8_t>& input, std::vector<std::uint8_t>& packed, std::string& error) {
-#ifdef _WIN32
-    DarktideOodle oodle;
-    return oodle.load(error) && oodle.compress_roundtrip(input, packed, "shader", error);
-#else
-    (void)input; (void)packed;
-    error = "Oodle compression requires Darktide's Windows Oodle DLL (unsupported on this platform)";
-    return false;
-#endif
-}
-
-bool oodle_decompress(const std::vector<std::uint8_t>& packed, std::vector<std::uint8_t>& output, std::string& error) {
-#ifdef _WIN32
-    DarktideOodle oodle;
-    if (!oodle.load(error)) return false;
-    if (!oodle.decompress(packed.data(), packed.size(), output, error)) { error = "Oodle could not unpack the data"; return false; }
-    return true;
-#else
-    (void)packed; (void)output;
-    error = "Oodle decompression requires Darktide's Windows Oodle DLL (unsupported on this platform)";
-    return false;
-#endif
-}
-
-bool configure_oodle(const std::filesystem::path& dll_or_game_directory, std::string& error) {
-#ifdef _WIN32
-    const auto dll = oodle_dll_from_input(dll_or_game_directory);
-    if (!valid_oodle_dll(dll, error)) return false;
-    const auto config = oodle_config_file();
-    if (config.empty()) {
-        error = "LOCALAPPDATA is unavailable; set DARKTIDE_OODLE_CONFIG_DIR to choose a configuration directory";
-        return false;
-    }
-    std::error_code ec;
-    const auto absolute = std::filesystem::absolute(dll, ec).lexically_normal();
-    if (ec) { error = "could not resolve Oodle DLL path: " + ec.message(); return false; }
-    std::filesystem::create_directories(config.parent_path(), ec);
-    if (ec) { error = "could not create Oodle configuration directory: " + ec.message(); return false; }
-    const auto encoded = absolute.u8string();
-    const auto temporary = config.parent_path() / (L"oodle_path.txt.tmp." + std::to_wstring(GetCurrentProcessId()));
-    std::ofstream saved(temporary, std::ios::binary | std::ios::trunc);
-    if (!saved || !saved.write(reinterpret_cast<const char*>(encoded.data()), static_cast<std::streamsize>(encoded.size())) || !saved.put('\n')) {
-        saved.close();
-        std::filesystem::remove(temporary, ec);
-        error = "could not write temporary Oodle configuration file: " + config.parent_path().string();
-        return false;
-    }
-    saved.flush();
-    saved.close();
-    if (!saved) {
-        std::filesystem::remove(temporary, ec);
-        error = "could not finish writing temporary Oodle configuration file: " + config.parent_path().string();
-        return false;
-    }
-    if (!MoveFileExW(temporary.c_str(), config.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-        const DWORD move_error = GetLastError();
-        std::filesystem::remove(temporary, ec);
-        error = "could not replace Oodle configuration file (Windows error " + std::to_string(move_error) + ")";
-        return false;
-    }
-    return true;
-#else
-    (void)dll_or_game_directory;
-    error = "Oodle configuration is available only on Windows";
-    return false;
-#endif
-}
-
-std::filesystem::path game_root() {
-#ifdef _WIN32
-    // same places the oodle dll is looked up, the dll lives in <game>/binaries
-    const auto env_path = [](const wchar_t* name) -> std::filesystem::path {
-        const DWORD needed = GetEnvironmentVariableW(name, nullptr, 0);
-        if (!needed) return {};
-        std::vector<wchar_t> value(needed);
-        const DWORD copied = GetEnvironmentVariableW(name, value.data(), needed);
-        return copied && copied < needed ? std::filesystem::path(value.data()) : std::filesystem::path{};
-    };
-    std::error_code ec;
-    if (auto root = env_path(L"DARKTIDE_GAME_ROOT"); !root.empty()) return root;
-    if (const auto config = oodle_config_file(); !config.empty()) {
-        std::ifstream saved(config, std::ios::binary);
-        std::string utf8_path;
-        if (saved && std::getline(saved, utf8_path) && !utf8_path.empty() && utf8_path.find('\0') == std::string::npos) {
-            const auto dll = std::filesystem::u8path(utf8_path);
-            const auto root = dll.parent_path().parent_path();
-            if (std::filesystem::is_directory(root / L"bundle", ec)) return root;
-        }
-    }
-    if (const auto program_files = env_path(L"ProgramFiles(x86)"); !program_files.empty())
-        return program_files / L"Steam" / L"steamapps" / L"common" / L"Warhammer 40,000 DARKTIDE";
-#endif
-    return {};
-}
 
 const TextureProfile& substance_basic_bc_profile(){return kSubstanceBc;}
 const TextureProfile& substance_basic_bca_profile(){return kSubstanceBca;}
@@ -656,20 +404,18 @@ bool normalize_image_for_family(const ImageRGBA& source,ImageRGBA& out,bool& cha
 std::string make_texture_stream_name(const std::string& resource_name){std::ostringstream ss;ss<<std::hex<<std::nouppercase<<std::setfill('0')<<std::setw(16)<<id64("texture-stream:"+resource_name);return "data/am/"+ss.str()+".stream";}
 
 bool write_native_texture_rgba(const ImageRGBA& source,const TextureProfile& profile,const std::string& resource,const std::filesystem::path& texture_path,const std::filesystem::path& stream_path,CookedTexture& out,std::string& error){
-#ifdef _WIN32
-    DarktideOodle oodle;if(!oodle.load(error))return false;
-#else
+#ifndef _WIN32
     error="native texture writing requires Darktide's Windows Oodle DLL (unsupported on this platform)";return false;
 #endif
     ImageRGBA base;bool normalized=false;if(!normalize_image_for_family(source,profile,base,normalized,error))return false;const auto dims=mip_dims(base.width,base.height);if(dims.empty()||dims.size()>16){error="texture mip count is outside 1..16";return false;}const auto sc=streamed_mips(dims,profile.block_bytes);if(sc==std::numeric_limits<std::size_t>::max()){error="texture has no resident mip tail";return false;}
     std::vector<SurfaceMip> mips;mips.reserve(dims.size());ImageRGBA cur=base;for(std::size_t i=0;i<dims.size();++i){std::string e;auto enc=encode_surface(cur,profile,e);if(enc.empty()&&!e.empty()){error=e;return false;}mips.push_back({cur.width,cur.height,std::move(enc)});if(i+1<dims.size()){if(profile.filtering==TextureFiltering::Normal)cur=downsample_normal(cur);else if(profile.filtering==TextureFiltering::ColorSrgb)cur=downsample_srgb(cur);else cur=downsample_linear(cur);}}
     std::vector<SurfaceMip> resident(mips.begin()+static_cast<std::ptrdiff_t>(sc),mips.end());const auto dds=build_dds(resident.front().width,resident.front().height,profile,resident);std::vector<std::uint8_t> packed_dds;
 #ifdef _WIN32
-    if(!oodle.compress_roundtrip(dds,packed_dds,"resident DDS",error))return false;
+    if(!oodle_compress(dds,packed_dds,error,"resident DDS"))return false;
 #endif
     std::vector<std::uint8_t> stream;std::vector<std::uint32_t> cumulative;for(std::size_t i=0;i<sc;++i){auto chunks=tile_surface(mips[i].width,mips[i].height,mips[i].bytes,profile.block_bytes,error);if(!error.empty())return false;for(std::size_t j=0;j<chunks.size();++j){std::vector<std::uint8_t> packed;
 #ifdef _WIN32
-        const auto label="streamed mip "+std::to_string(i)+" chunk "+std::to_string(j);if(!oodle.compress_roundtrip(chunks[j],packed,label.c_str(),error))return false;
+        const auto label="streamed mip "+std::to_string(i)+" chunk "+std::to_string(j);if(!oodle_compress(chunks[j],packed,error,label.c_str()))return false;
 #endif
         if(stream.size()+packed.size()>0xffffffffull){error="compressed texture stream exceeds u32 range";return false;}stream.insert(stream.end(),packed.begin(),packed.end());cumulative.push_back(static_cast<std::uint32_t>(stream.size()));}}
     std::vector<std::uint8_t> body;append(body,std::uint32_t{1});append(body,static_cast<std::uint32_t>(packed_dds.size()));append(body,static_cast<std::uint32_t>(dds.size()));append_bytes(body,packed_dds);append(body,std::uint32_t{67});append(body,profile.body_flags);append(body,static_cast<std::uint32_t>(sc));append(body,base.width);append(body,base.height);
@@ -690,8 +436,7 @@ bool texture_body_as_kind1(const std::vector<std::uint8_t>& body,std::vector<std
        u32(body.size()-tail)!=67||u32(body.size()-8)!=0){error="texture body is neither kind 0 nor kind 1";return false;}
     const std::vector<std::uint8_t> dds(body.begin()+12,body.end()-static_cast<std::ptrdiff_t>(tail));
 #ifdef _WIN32
-    DarktideOodle oodle;if(!oodle.load(error))return false;
-    std::vector<std::uint8_t> packed;if(!oodle.compress_roundtrip(dds,packed,"texture DDS",error))return false;
+    std::vector<std::uint8_t> packed;if(!oodle_compress(dds,packed,error,"texture DDS"))return false;
 #else
     error="repacking textures requires Darktide's Windows Oodle DLL";return false;
 #endif
@@ -709,14 +454,12 @@ bool encode_texture_like(const ImageRGBA& source, const std::vector<std::uint8_t
     if (game_body.size() < 12 + 156) { error = "the game's texture body is truncated"; return false; }
     // kind 1: [1][packed][dds size] Oodle-packed DDS; kind 0: [0][0][0] plain DDS. Then the mip block (marker 67),
     // the chunk metadata and the footer.
-    DarktideOodle oodle;
-    if (!oodle.load(error)) return false;
     std::vector<std::uint8_t> dds;
     std::size_t tail = 0;
     if (u32(0) == 1) {
         const std::size_t packed = u32(4);
         dds.resize(u32(8));
-        if (12 + packed + 148 > game_body.size() || !oodle.decompress(game_body.data() + 12, packed, dds, error)) return false;
+        if (12 + packed + 148 > game_body.size() || !oodle_decompress(game_body.data() + 12, packed, dds, error)) return false;
         tail = 12 + packed;
     } else {
         tail = game_body.size() - 156;
@@ -783,7 +526,7 @@ bool encode_texture_like(const ImageRGBA& source, const std::vector<std::uint8_t
         for (std::size_t j = 0; j < chunks.size(); ++j) {
             std::vector<std::uint8_t> packed;
             const auto label = "streamed mip " + std::to_string(i) + " chunk " + std::to_string(j);
-            if (!oodle.compress_roundtrip(chunks[j], packed, label.c_str(), error)) return false;
+            if (!oodle_compress(chunks[j], packed, error, label.c_str())) return false;
             stream.insert(stream.end(), packed.begin(), packed.end());
             cumulative.push_back(static_cast<std::uint32_t>(stream.size()));
         }
@@ -815,7 +558,7 @@ bool encode_texture_like(const ImageRGBA& source, const std::vector<std::uint8_t
         append(table, size);
     }
     std::vector<std::uint8_t> packed;
-    if (!oodle.compress_roundtrip(resident, packed, "texture", error)) return false;
+    if (!oodle_compress(resident, packed, error, "texture")) return false;
     const std::uint32_t body_flags = streamed ? game_flags | 1u : game_flags & ~1u;
     body.clear();
     append(body, std::uint32_t{1}); append(body, static_cast<std::uint32_t>(packed.size()));
@@ -893,11 +636,9 @@ bool texture_body_image(const std::vector<std::uint8_t>& body, ImageRGBA& out, s
     std::vector<std::uint8_t> dds;
     if (u32(0) == 1) {
         // kind 1: Oodle-packed DDS header + the resident mips; the mip table after it says which mip comes first
-        DarktideOodle oodle;
-        if (!oodle.load(error)) return false;
         const std::size_t packed = u32(4);
         dds.resize(u32(8));
-        if (12 + packed + 20 + 16 * 8 > body.size() || dds.size() < 148 || !oodle.decompress(body.data() + 12, packed, dds, error)) {
+        if (12 + packed + 20 + 16 * 8 > body.size() || dds.size() < 148 || !oodle_decompress(body.data() + 12, packed, dds, error)) {
             if (error.empty()) error = "texture body is truncated";
             return false;
         }
@@ -956,6 +697,37 @@ bool texture_body_image(const std::vector<std::uint8_t>& body, ImageRGBA& out, s
 #else
     (void)body; (void)out; (void)srgb;
     error = "reading the game's textures needs the Windows build (DirectXTex and Darktide's Oodle DLL)";
+    return false;
+#endif
+}
+
+bool mip_image(std::uint32_t dxgi_format, std::uint32_t width, std::uint32_t height, const std::vector<std::uint8_t>& data,
+               ImageRGBA& out, std::string& error) {
+#ifdef DTGLB_USE_DIRECTXTEX
+    DirectX::Image mip{};
+    mip.format = static_cast<DXGI_FORMAT>(dxgi_format);
+    mip.width = width;
+    mip.height = height;
+    if (FAILED(DirectX::ComputePitch(mip.format, mip.width, mip.height, mip.rowPitch, mip.slicePitch)) || mip.slicePitch > data.size()) {
+        error = "mip data doesn't match its format and size";
+        return false;
+    }
+    mip.pixels = const_cast<std::uint8_t*>(data.data());
+    const DXGI_FORMAT rgba = DirectX::IsSRGB(mip.format) ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+    DirectX::ScratchImage converted;
+    const HRESULT hr = DirectX::IsCompressed(mip.format)
+        ? DirectX::Decompress(mip, rgba, converted)
+        : DirectX::Convert(mip, rgba, DirectX::TEX_FILTER_FORCE_NON_WIC, DirectX::TEX_THRESHOLD_DEFAULT, converted);
+    if (FAILED(hr)) { error = "DirectXTex could not decode the mip"; return false; }
+    const DirectX::Image& image = *converted.GetImage(0, 0, 0);
+    out.width = width;
+    out.height = height;
+    out.pixels.resize(static_cast<std::size_t>(width) * height * 4);
+    for (std::size_t y = 0; y < height; ++y) std::memcpy(out.pixels.data() + y * width * 4, image.pixels + y * image.rowPitch, width * 4);
+    return true;
+#else
+    (void)dxgi_format; (void)width; (void)height; (void)data; (void)out;
+    error = "decoding the game's textures needs the Windows build (DirectXTex)";
     return false;
 #endif
 }

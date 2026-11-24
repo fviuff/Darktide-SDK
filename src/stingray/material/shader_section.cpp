@@ -127,6 +127,62 @@ void write_pass(Writer& w, const ShaderPass& p) {
     w.words(p.stream_out);
 }
 
+void read_shader_data(Reader& d, std::vector<ShaderData>& out) {
+    out.resize(d.count(24));
+    for (auto& e : out) {
+        e.name = d.u32();
+        e.resource_size = d.u32();
+        e.resources = d.words<4>();
+        e.constant_buffers.resize(d.count(12));
+        for (auto& cb : e.constant_buffers) { cb.variables = d.words<5>(); cb.size = d.u32(); cb.offset = d.u32(); }
+        e.records = d.words<7>();
+        e.passes.resize(d.count(17));
+        for (auto& p : e.passes) { p.layer = d.u32(); p.sort_key = d.u64(); p.instanced = d.u8(); p.branch_key = d.u32(); }
+        e.tail[0] = d.u32();
+        e.tail[1] = d.u32();
+    }
+}
+
+void write_shader_data(Writer& w, const std::vector<ShaderData>& data) {
+    w.u32(static_cast<std::uint32_t>(data.size()));
+    for (const auto& e : data) {
+        w.u32(e.name);
+        w.u32(e.resource_size);
+        w.words(e.resources);
+        w.u32(static_cast<std::uint32_t>(e.constant_buffers.size()));
+        for (const auto& cb : e.constant_buffers) { w.words(cb.variables); w.u32(cb.size); w.u32(cb.offset); }
+        w.words(e.records);
+        w.u32(static_cast<std::uint32_t>(e.passes.size()));
+        for (const auto& p : e.passes) { w.u32(p.layer); w.u64(p.sort_key); w.u8(p.instanced); w.u32(p.branch_key); }
+        w.u32(e.tail[0]);
+        w.u32(e.tail[1]);
+    }
+}
+
+void read_device_data(Reader& v, std::vector<DeviceShader>& out) {
+    out.resize(v.count(8));
+    for (auto& shader : out) {
+        shader.groups.resize(v.count(4));
+        for (auto& group : shader.groups) {
+            group.resize(v.count(40));
+            for (auto& pass : group) pass = read_pass(v);
+        }
+        shader.tail = v.u32();
+    }
+}
+
+void write_device_data(Writer& w, const std::vector<DeviceShader>& data) {
+    w.u32(static_cast<std::uint32_t>(data.size()));
+    for (const auto& shader : data) {
+        w.u32(static_cast<std::uint32_t>(shader.groups.size()));
+        for (const auto& group : shader.groups) {
+            w.u32(static_cast<std::uint32_t>(group.size()));
+            for (const auto& pass : group) write_pass(w, pass);
+        }
+        w.u32(shader.tail);
+    }
+}
+
 std::string hex(std::uint64_t value, int digits) {
     char text[24];
     std::snprintf(text, sizeof(text), "%0*llx", digits, static_cast<unsigned long long>(value));
@@ -178,31 +234,11 @@ bool decode_shader_section(const std::vector<std::uint8_t>& bytes, ShaderSection
     std::memcpy(s.render_config.data(), bytes.data() + render_config_offset, 8 * render_configs);
 
     Reader d{bytes, data_offset, data_offset + data_size};
-    s.shader_data.resize(d.count(24));
-    for (auto& e : s.shader_data) {
-        e.name = d.u32();
-        e.resource_size = d.u32();
-        e.resources = d.words<4>();
-        e.constant_buffers.resize(d.count(12));
-        for (auto& cb : e.constant_buffers) { cb.variables = d.words<5>(); cb.size = d.u32(); cb.offset = d.u32(); }
-        e.records = d.words<7>();
-        e.passes.resize(d.count(17));
-        for (auto& p : e.passes) { p.layer = d.u32(); p.sort_key = d.u64(); p.value = d.u32(); p.instanced = d.u8(); }
-        e.tail[0] = d.u32();
-        e.tail[1] = d.u32();
-    }
+    read_shader_data(d, s.shader_data);
     if (!d.ok || d.pos != data_offset + data_size) { error = "shader_data does not parse to its size"; return false; }
 
     Reader v{bytes, device_offset, device_offset + device_size};
-    s.device_data.resize(v.count(8));
-    for (auto& shader : s.device_data) {
-        shader.groups.resize(v.count(4));
-        for (auto& group : shader.groups) {
-            group.resize(v.count(40));
-            for (auto& pass : group) pass = read_pass(v);
-        }
-        shader.tail = v.u32();
-    }
+    read_device_data(v, s.device_data);
     if (!v.ok || v.pos != device_offset + device_size) { error = "device_data does not parse to its size"; return false; }
     s.default_data.assign(bytes.begin() + default_offset, bytes.end());
     out = std::move(s);
@@ -220,31 +256,11 @@ std::vector<std::uint8_t> encode_shader_section(const ShaderSection& s) {
     const auto render_config_offset = w.size();
     for (const auto id : s.render_config) w.u64(id);
     const auto data_offset = w.size();
-    w.u32(static_cast<std::uint32_t>(s.shader_data.size()));
-    for (const auto& e : s.shader_data) {
-        w.u32(e.name);
-        w.u32(e.resource_size);
-        w.words(e.resources);
-        w.u32(static_cast<std::uint32_t>(e.constant_buffers.size()));
-        for (const auto& cb : e.constant_buffers) { w.words(cb.variables); w.u32(cb.size); w.u32(cb.offset); }
-        w.words(e.records);
-        w.u32(static_cast<std::uint32_t>(e.passes.size()));
-        for (const auto& p : e.passes) { w.u32(p.layer); w.u64(p.sort_key); w.u32(p.value); w.u8(p.instanced); }
-        w.u32(e.tail[0]);
-        w.u32(e.tail[1]);
-    }
+    write_shader_data(w, s.shader_data);
     const auto data_size = w.size() - data_offset;
     w.pad4();
     const auto device_offset = w.size();
-    w.u32(static_cast<std::uint32_t>(s.device_data.size()));
-    for (const auto& shader : s.device_data) {
-        w.u32(static_cast<std::uint32_t>(shader.groups.size()));
-        for (const auto& group : shader.groups) {
-            w.u32(static_cast<std::uint32_t>(group.size()));
-            for (const auto& pass : group) write_pass(w, pass);
-        }
-        w.u32(shader.tail);
-    }
+    write_device_data(w, s.device_data);
     const auto device_size = w.size() - device_offset;
     w.pad4();
     const auto default_offset = w.size();
@@ -254,6 +270,79 @@ std::vector<std::uint8_t> encode_shader_section(const ShaderSection& s) {
         default_offset, render_config_offset, static_cast<std::uint32_t>(s.render_config.size()), data_offset,
         data_size, device_offset, device_size};
     std::memcpy(w.out.data(), h.data(), sizeof(h));
+    return std::move(w.out);
+}
+
+bool decode_shader_library_group(const std::vector<std::uint8_t>& body, ShaderLibraryGroup& out, std::string& error) {
+    ShaderLibraryGroup g;
+    Reader r{body, 0, body.size()};
+    g.version = r.u32();
+    if (r.ok && g.version != 0x6a) { error = "shader library group version " + std::to_string(g.version) + " (expected 106)"; return false; }
+    g.libraries.resize(r.count(16));
+    for (auto& library : g.libraries) {
+        library.version = r.u32();
+        if (r.ok && library.version != 0x6a) { error = "shader library version " + std::to_string(library.version) + " (expected 106)"; return false; }
+        read_shader_data(r, library.shader_data);
+        library.records.resize(r.count(4));
+        for (auto& list : library.records) list = r.words<5>();
+        library.lists.resize(r.count(4));
+        for (auto& list : library.lists) {
+            list.resize(r.count(4));
+            for (auto& w : list) w = r.u32();
+        }
+        library.templates.resize(r.count(8));
+        for (auto& t : library.templates) {
+            t.name = r.u32();
+            t.items.resize(r.count(8));
+            for (auto& item : t.items) {
+                item.name = r.u32();
+                item.entries.resize(r.count(8));
+                for (auto& [word, bytes] : item.entries) {
+                    word = r.u32();
+                    bytes = r.raw(r.u32());
+                }
+            }
+        }
+        read_device_data(r, library.device_data);
+        if (!r.ok) break;
+    }
+    if (!r.ok) { error = "shader library group is truncated"; return false; }
+    if (r.pos != body.size()) { error = "shader library group has " + std::to_string(body.size() - r.pos) + " bytes after its libraries"; return false; }
+    out = std::move(g);
+    if (encode_shader_library_group(out) != body) { error = "shader library group layout differs from the known one"; return false; }
+    return true;
+}
+
+std::vector<std::uint8_t> encode_shader_library_group(const ShaderLibraryGroup& g) {
+    Writer w;
+    w.u32(g.version);
+    w.u32(static_cast<std::uint32_t>(g.libraries.size()));
+    for (const auto& library : g.libraries) {
+        w.u32(library.version);
+        write_shader_data(w, library.shader_data);
+        w.u32(static_cast<std::uint32_t>(library.records.size()));
+        for (const auto& list : library.records) w.words(list);
+        w.u32(static_cast<std::uint32_t>(library.lists.size()));
+        for (const auto& list : library.lists) {
+            w.u32(static_cast<std::uint32_t>(list.size()));
+            for (const auto word : list) w.u32(word);
+        }
+        w.u32(static_cast<std::uint32_t>(library.templates.size()));
+        for (const auto& t : library.templates) {
+            w.u32(t.name);
+            w.u32(static_cast<std::uint32_t>(t.items.size()));
+            for (const auto& item : t.items) {
+                w.u32(item.name);
+                w.u32(static_cast<std::uint32_t>(item.entries.size()));
+                for (const auto& [word, bytes] : item.entries) {
+                    w.u32(word);
+                    w.u32(static_cast<std::uint32_t>(bytes.size()));
+                    w.raw(bytes);
+                }
+            }
+        }
+        write_device_data(w, library.device_data);
+    }
     return std::move(w.out);
 }
 

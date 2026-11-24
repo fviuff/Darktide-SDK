@@ -868,6 +868,15 @@ int compile(const CompileOptions& requested_options) {
         std::cerr << report << "\n";
         return 3;
     }
+    for (const auto& part : scene.asset_definition.parts) {
+        std::string part_report;
+        if (options.validate && emit_unit &&
+            !validation::validate_unit_v115(staging / (part.name + ".unit"), part_report)) {
+            cleanup_staging(staging);
+            std::cerr << "part " << part.name << ": " << part_report << "\n";
+            return 3;
+        }
+    }
     for (const auto& resource : resources) {
         if (!std::filesystem::is_regular_file(preferred_path(staging / resource), ec) || ec) {
             error = "staged resource is missing: " + resource;
@@ -878,7 +887,7 @@ int compile(const CompileOptions& requested_options) {
     }
     CompileOptions staged_options = options;
     staged_options.output_dir = staging;
-    if (!write_manifest(scene, staged_options, physics, emit_unit ? unit_path : std::filesystem::path{}, "compiled", {}, resources, feature_status, "compile_manifest.json", plan.approximations, metadata.emitted_clips, serialized.texture_normalizations)) {
+    if (options.write_manifest && !write_manifest(scene, staged_options, physics, emit_unit ? unit_path : std::filesystem::path{}, "compiled", {}, resources, feature_status, "compile_manifest.json", plan.approximations, metadata.emitted_clips, serialized.texture_normalizations)) {
         error = "cannot write success manifest in staging directory";
         cleanup_staging(staging);
         std::cerr << "compile failed: " << error << "\n";
@@ -888,6 +897,11 @@ int compile(const CompileOptions& requested_options) {
         cleanup_staging(staging);
         std::cerr << "compile failed: " << error << "\n";
         return 2;
+    }
+    if (!options.write_manifest) {
+        // a report of an earlier build would be out of date
+        std::error_code stale;
+        std::filesystem::remove(options.output_dir / "compile_manifest.json", stale);
     }
     cleanup_staging(staging);
 

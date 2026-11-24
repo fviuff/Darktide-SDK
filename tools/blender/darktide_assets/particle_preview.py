@@ -629,7 +629,7 @@ class EffectPreview:
 
     def load_materials(self, obj):
         """The game shader of every billboard's material (the panel shows why one can't be used)."""
-        from . import prefs
+        from .settings import prefs
         self.materials = {}
         self.problems = []
         settings = prefs()
@@ -722,7 +722,7 @@ def _make_dot():
 
 def _draw():
     global _shader, _dot
-    from . import prefs
+    from .settings import prefs
     if not _previews:
         return
     region = bpy.context.region_data

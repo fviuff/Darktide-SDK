@@ -62,8 +62,15 @@ bool serialize_physics_collections(const std::vector<CollectionBody>& bodies,
 // motions, limits, drives, break force).
 bool describe_physics_collection(const std::vector<std::uint8_t>& scene, std::string& out, std::string& error);
 
-// Cooked PhysX shapes (type 3 triangle mesh, 4 convex, as UNIT actor records carry them) as JSON: vertices and
-// triangles per mesh (convex polygons as fans).
+// Cooked PhysX shapes (type 3 triangle mesh, 4 convex, as UNIT actor records carry them): vertices and triangles per
+// mesh (convex polygons as fans, outward facing).
+struct CookedMesh {
+    std::vector<std::array<float, 3>> vertices;
+    std::vector<std::uint32_t> triangles;
+};
+bool read_cooked_meshes(const std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>>& meshes,
+                        std::vector<CookedMesh>& out, std::string& error);
+// the same as JSON
 bool describe_cooked_meshes(const std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>>& meshes,
                             std::string& out, std::string& error);
 

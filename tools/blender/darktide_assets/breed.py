@@ -101,6 +101,22 @@ def validate(options):
         raise ValueError("Pick the game breed your enemy behaves like")
 
 
+def _own_gibs(options, resource):
+    """The game breed's gibbing with this body's own pieces and stumps (Make Gibs), or none."""
+    from . import gibs
+    collection = getattr(options, "id_data", None)
+    made = json.loads(collection["darktide_gibs"])["cuts"] if collection is not None and "darktide_gibs" in collection else {}
+    if not made:
+        return ["    breed.gib_template = nil"]
+    own_gibs = "(function()\n" + gibs.RUNTIME_LUA + "end)()"
+    lines = ["    -- own gibs (Make Gibs): the game breed's cuts with the pieces and stumps cut from this body"]
+    lines.append("    local own_gibs = " + own_gibs.replace("\n", "\n    "))
+    lines.append("    breed.gib_template = own_gibs(breed.gib_template, " + gibs.cuts_lua(made, "    ") + ", " +
+                 _lua_string(resource.rsplit("/", 1)[0] + "/") + ")")
+    lines.append("    breed.gib_template.name = name")
+    return lines
+
+
 def lua(options, resource, actor_objects):
     validate(options)
     name, base = options.breed_name.strip(), options.breed_base
@@ -149,9 +165,9 @@ def lua(options, resource, actor_objects):
             "        end",
             "    end",
             "    breed.use_wounds = false",
-            "    breed.gib_template = nil",
             "    breed.dissolve_config = nil",
         ]
+        lines += _own_gibs(options, resource)
     if zones is not None:
         lines.append("    breed.hit_zones = {")
         for zone, actors in zones:

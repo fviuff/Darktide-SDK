@@ -299,6 +299,15 @@ void populate_asset_definition(const cgltf_data* data, Scene& out) {
     }
     std::set<int> visited;
     std::set<std::string> ids;
+    // the part a node belongs to (its detached root), or -1 for the main unit
+    const auto part_of = [&](int index) {
+        while (out.nodes[static_cast<std::size_t>(index)].parent >= 0) index = out.nodes[static_cast<std::size_t>(index)].parent;
+        for (const auto& part : out.asset_definition.parts) if (part.source_node == index) return index;
+        return -1;
+    };
+    const auto one_per_unit = [&](const std::vector<std::pair<int, std::string>>& list, int index) {
+        return std::none_of(list.begin(), list.end(), [&](const auto& entry) { return part_of(entry.first) == part_of(index); });
+    };
     std::vector<int> pending(out.scene_roots);
     while (!pending.empty()) {
         const int index = pending.back(); pending.pop_back();
@@ -308,17 +317,20 @@ void populate_asset_definition(const cgltf_data* data, Scene& out) {
         const auto payload = authored_payload(data, data->nodes[index].extras);
         if (!payload) continue;
         const auto location = "node[" + std::to_string(index) + "].darktide_asset";
-        const auto members = authored_members(*payload, location, {"version", "id", "body", "collider", "joint", "visibility_group", "dangle", "aim", "particles", "lod", "render", "light", "flow", "data", "textures", "actor", "volume", "mover"});
+        const auto members = authored_members(*payload, location, {"version", "id", "body", "collider", "joint", "visibility_group", "dangle", "aim", "particles", "lod", "render", "light", "flow", "data", "textures", "actor", "volume", "mover", "part"});
         if (const auto record = members.find("data"); record != members.end()) {
             // the unit's script data (Unit.get_data), a JSON object or a string holding it
-            if (!out.asset_definition.script_data.empty()) throw std::runtime_error(location + ".data: only one object may carry the unit data");
+            if (!one_per_unit(out.asset_definition.unit_script_data, index)) throw std::runtime_error(location + ".data: only one object may carry the unit data");
             const auto text = authored_trim(record->second);
+            std::string value;
             if (!text.empty() && text.front() == '"') {
-                if (text.size() < 2 || !json_unescape_string(text.substr(1, text.size() - 2), out.asset_definition.script_data))
+                if (text.size() < 2 || !json_unescape_string(text.substr(1, text.size() - 2), value))
                     throw std::runtime_error(location + ".data: not a valid JSON string");
             } else {
-                out.asset_definition.script_data = std::string(text);
+                value = std::string(text);
             }
+            if (part_of(index) < 0) out.asset_definition.script_data = value;
+            out.asset_definition.unit_script_data.push_back({index, std::move(value)});
         }
         if (const auto record = members.find("textures"); record != members.end()) {
             // the asset's loose textures (compiler/loose_textures.h), a JSON list or a string holding it
@@ -333,14 +345,17 @@ void populate_asset_definition(const cgltf_data* data, Scene& out) {
         }
         if (const auto record = members.find("flow"); record != members.end()) {
             // the unit's flow graph (flow_authoring.h), as a JSON object or a string holding it
-            if (!out.asset_definition.flow.empty()) throw std::runtime_error(location + ".flow: only one object may carry the unit flow");
+            if (!one_per_unit(out.asset_definition.unit_flows, index)) throw std::runtime_error(location + ".flow: only one object may carry the unit flow");
             const auto text = authored_trim(record->second);
+            std::string value;
             if (!text.empty() && text.front() == '"') {
-                if (text.size() < 2 || !json_unescape_string(text.substr(1, text.size() - 2), out.asset_definition.flow))
+                if (text.size() < 2 || !json_unescape_string(text.substr(1, text.size() - 2), value))
                     throw std::runtime_error(location + ".flow: not a valid JSON string");
             } else {
-                out.asset_definition.flow = std::string(text);
+                value = std::string(text);
             }
+            if (part_of(index) < 0) out.asset_definition.flow = value;
+            out.asset_definition.unit_flows.push_back({index, std::move(value)});
         }
         if (const auto record = members.find("actor"); record != members.end()) {
             const auto where = location + ".actor";
@@ -514,7 +529,7 @@ void populate_asset_definition(const cgltf_data* data, Scene& out) {
                     if (key.size() != 16 || !std::all_of(key.begin(), key.end(), [](unsigned char c) { return std::isxdigit(c) != 0; }))
                         throw std::runtime_error(where + ".materials: keys are 16-digit material hashes");
                     const auto at = where + ".materials." + key;
-                    const auto edit = authored_members(value, at, {"variables", "textures"});
+                    const auto edit = authored_members(value, at, {"variables", "textures", "shader_constants"});
                     ParticleMaterialEdit out_edit;
                     if (const auto variables = edit.find("variables"); variables != edit.end())
                         for (const auto& [name, numbers] : authored_members(variables->second, at + ".variables", {}))
@@ -523,6 +538,13 @@ void populate_asset_definition(const cgltf_data* data, Scene& out) {
                         for (const auto& [channel, image] : authored_members(textures->second, at + ".textures", {})) {
                             AuthoredMembers wrapper; wrapper.emplace("image", image);
                             out_edit.textures.emplace(channel, authored_string(wrapper, "image", at + ".textures." + channel));
+                        }
+                    if (const auto constants = edit.find("shader_constants"); constants != edit.end())
+                        for (const auto& [from, to] : authored_members(constants->second, at + ".shader_constants", {})) {
+                            const auto bits = [](float value) { std::uint32_t b; std::memcpy(&b, &value, 4); return b; };
+                            const auto where_constant = at + ".shader_constants." + from;
+                            out_edit.shader_constants[bits(authored_number(from, where_constant))] =
+                                bits(authored_number(to, where_constant));
                         }
                     effect.materials.emplace(std::stoull(key, nullptr, 16), std::move(out_edit));
                 }
@@ -1535,7 +1557,7 @@ MaterialInfo convert_material(const cgltf_data* data, const cgltf_material& sour
     material.name = source.name ? source.name : "material_" + std::to_string(index);
     if (const auto payload = authored_payload(data, source.extras, "darktide_material")) {
         const std::string location = "material[" + std::to_string(index) + "].extras.darktide_material";
-        const auto members = authored_members(*payload, location, {"version", "mode", "resource", "template", "surface", "family", "stream", "variable_overrides", "variables", "textures", "shader_streams", "weapon"});
+        const auto members = authored_members(*payload, location, {"version", "mode", "resource", "template", "surface", "family", "stream", "variable_overrides", "variables", "textures", "shader_streams", "weapon", "code", "parameters", "alpha_clip", "decal"});
         authored_version(members, location, "darktide_material");
         const auto mode = authored_string(members, "mode", location);
         if (mode == "generated") {
@@ -1619,8 +1641,39 @@ MaterialInfo convert_material(const cgltf_data* data, const cgltf_material& sour
                 }
             }
             material.surface_material = authored_string(members, "surface", location, "default");
+        } else if (mode == "shader") {
+            if (members.count("resource") || members.count("template") || members.count("family") ||
+                members.count("stream") || members.count("variable_overrides") || members.count("variables") ||
+                members.count("shader_streams"))
+                throw std::runtime_error(location + ": shader mode takes code, parameters, textures, alpha_clip, decal and surface");
+            material.intent = MaterialInfo::Intent::Shader;
+            material.shader_code = authored_string(members, "code", location);
+            if (const auto decal = members.find("decal"); decal != members.end()) {
+                if (decal->second != "true" && decal->second != "false")
+                    throw std::runtime_error(location + ".decal: must be true or false");
+                material.shader_decal = decal->second == "true";
+            }
+            if (const auto clip = members.find("alpha_clip"); clip != members.end()) {
+                material.shader_alpha_clip = authored_number(clip->second, location + ".alpha_clip");
+                if (!(material.shader_alpha_clip >= 0.0f && material.shader_alpha_clip <= 1.0f))
+                    throw std::runtime_error(location + ".alpha_clip: the cutoff is a number from 0 to 1");
+            }
+            if (const auto parameters = members.find("parameters"); parameters != members.end()) {
+                for (const auto& [key, value] : authored_members(parameters->second, location + ".parameters", {}))
+                    material.shader_parameters.emplace(key, authored_floats(value, location + ".parameters." + key));
+            }
+            if (const auto textures = members.find("textures"); textures != members.end()) {
+                for (const auto& [key, value] : authored_members(textures->second, location + ".textures", {})) {
+                    AuthoredMembers wrapper; wrapper.emplace("slot", value);
+                    const auto slot = authored_string(wrapper, "slot", location + ".textures." + key);
+                    if (slot != "base_color" && slot != "normal" && slot != "orm" && slot != "emissive")
+                        throw std::runtime_error(location + ".textures." + key + ": use base_color, normal, orm or emissive");
+                    material.shader_textures.emplace(key, slot);
+                }
+            }
+            material.surface_material = authored_string(members, "surface", location, "default");
         } else {
-            throw std::runtime_error(location + ": mode must be generated, emissive, external, template, donor, or game_shader");
+            throw std::runtime_error(location + ": mode must be generated, emissive, external, template, donor, game_shader or shader");
         }
         if (const auto weapon = members.find("weapon"); weapon != members.end()) {
             if (material.intent != MaterialInfo::Intent::Generated)
@@ -2243,6 +2296,49 @@ void populate_nodes_scenes(const cgltf_data* data, Scene& out, const LoadOptions
         }
     }
 
+    // Parts (darktide_asset "part": name): the node's subtree becomes a unit of its own. It is detached here so
+    // everything under it is expressed relative to it, with the part's root at the origin of its unit.
+    std::vector<int> part_tops;
+    for (cgltf_size i = 0; i < data->nodes_count; ++i) {
+        const auto payload = authored_payload(data, data->nodes[i].extras);
+        if (!payload) continue;
+        const auto location = "node[" + std::to_string(i) + "].darktide_asset";
+        const auto members = authored_members(*payload, location, {});
+        if (!members.count("part")) continue;
+        const auto name = authored_string(members, "part", location);
+        if (!std::all_of(name.begin(), name.end(), [](char c) {
+                return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'; }))
+            throw std::runtime_error(location + ".part: use lowercase letters, digits, _ and - (it's a resource name)");
+        int top = static_cast<int>(i);
+        for (int up = out.nodes[i].parent; up >= 0; up = out.nodes[static_cast<std::size_t>(up)].parent) top = up;
+        out.asset_definition.parts.push_back({name, static_cast<int>(i)});
+        part_tops.push_back(top);
+    }
+    for (const auto& part : out.asset_definition.parts) {
+        for (int up = out.nodes[static_cast<std::size_t>(part.source_node)].parent; up >= 0;
+             up = out.nodes[static_cast<std::size_t>(up)].parent)
+            for (const auto& other : out.asset_definition.parts)
+                if (other.source_node == up)
+                    throw std::runtime_error("part '" + part.name + "' is inside part '" + other.name + "'");
+        for (const auto& other : out.asset_definition.parts)
+            if (&other != &part && other.name == part.name)
+                throw std::runtime_error("two parts are named '" + part.name + "'");
+    }
+    for (const auto& part : out.asset_definition.parts) {
+        auto& node = out.nodes[static_cast<std::size_t>(part.source_node)];
+        if (node.parent >= 0) {
+            auto& siblings = out.nodes[static_cast<std::size_t>(node.parent)].children;
+            siblings.erase(std::remove(siblings.begin(), siblings.end(), part.source_node), siblings.end());
+            node.parent = -1;
+        }
+        node.local_gltf = identity();
+        node.local_stingray = identity();
+        node.has_exact_trs = true;
+        node.local_translation_stingray = {0.0f, 0.0f, 0.0f};
+        node.local_rotation_stingray = {0.0f, 0.0f, 0.0f, 1.0f};
+        node.local_scale_stingray = {1.0f, 1.0f, 1.0f};
+    }
+
     // cgltf's convenience world-transform path performs float matrix products.
     // Compose here in double precision so finite source transforms cannot turn
     // into infinities before the native-profile approximation pass sees them.
@@ -2299,6 +2395,22 @@ void populate_nodes_scenes(const cgltf_data* data, Scene& out, const LoadOptions
         for (cgltf_size i = 0; i < data->nodes_count; ++i) {
             if (!data->nodes[i].parent) out.scene_roots.push_back(static_cast<int>(i));
         }
+    }
+    // the parts of the selected scene become extra roots, after the main unit's own
+    {
+        std::vector<int> roots, parts;
+        std::vector<PartDefinition> kept;
+        for (std::size_t p = 0; p < out.asset_definition.parts.size(); ++p) {
+            const int top = part_tops[p];
+            if (std::find(out.scene_roots.begin(), out.scene_roots.end(), top) == out.scene_roots.end()) continue;
+            kept.push_back(out.asset_definition.parts[p]);
+            parts.push_back(kept.back().source_node);
+        }
+        for (const int root : out.scene_roots)
+            if (std::find(parts.begin(), parts.end(), root) == parts.end()) roots.push_back(root);
+        roots.insert(roots.end(), parts.begin(), parts.end());
+        out.scene_roots = std::move(roots);
+        out.asset_definition.parts = std::move(kept);
     }
     out.source_features.root_count = out.scene_roots.size();
 }
@@ -3071,10 +3183,9 @@ void populate_active_primitives(const cgltf_data* data, Scene& out, const LoadOp
         visited_nodes.insert(node_index);
         const auto& node = data->nodes[static_cast<std::size_t>(node_index)];
         const bool visible = ancestors_visible && node_visibility(node);
-        cgltf_float local_values[16]{};
-        cgltf_node_transform_local(&node, local_values);
+        // the node table's local transform and children: parts are detached there (populate_nodes_scenes)
         bool transform_clamped = false;
-        const Mat4 node_world = multiply(parent_world, from_cgltf_matrix(local_values), &transform_clamped);
+        const Mat4 node_world = multiply(parent_world, out.nodes[static_cast<std::size_t>(node_index)].local_gltf, &transform_clamped);
         if (transform_clamped) {
             const std::string name = node.name ? node.name : "unnamed node";
             out.notes.push_back(name + ": finite transform composition exceeded float range; clamped matrix products [transform_composition_clamp]");
@@ -3089,8 +3200,8 @@ void populate_active_primitives(const cgltf_data* data, Scene& out, const LoadOp
                 add_mesh_instance(data, &node, *node.mesh, options, instance_worlds[instance_index], instance_index, out, used_meshes);
             }
         }
-        for (cgltf_size i = 0; i < node.children_count; ++i)
-            visit(pointer_index(data->nodes, data->nodes_count, node.children[i]), node_world, visible);
+        for (const int child : out.nodes[static_cast<std::size_t>(node_index)].children)
+            visit(child, node_world, visible);
     };
     for (int root : out.scene_roots) visit(root, identity(), true);
 

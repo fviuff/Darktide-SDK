@@ -1,0 +1,2776 @@
+{
+ "breeds": {
+  "chaos_armored_hound": "chaos_armored_hound",
+  "chaos_armored_infected": "chaos_newly_infected",
+  "chaos_beast_of_nurgle": "chaos_beast_of_nurgle",
+  "chaos_daemonhost": "chaos_daemonhost",
+  "chaos_daemonhost_torment": "chaos_daemonhost",
+  "chaos_hound": "chaos_hound",
+  "chaos_lesser_mutated_poxwalker": "chaos_lesser_mutated_poxwalker",
+  "chaos_mutated_poxwalker": "chaos_mutated_poxwalker",
+  "chaos_mutator_daemonhost": "chaos_daemonhost",
+  "chaos_mutator_ritualist": "cultist_ritualist",
+  "chaos_newly_infected": "chaos_newly_infected",
+  "chaos_ogryn_bulwark": "chaos_ogryn_bulwark",
+  "chaos_ogryn_executor": "chaos_ogryn_executor",
+  "chaos_ogryn_gunner": "chaos_ogryn_gunner",
+  "chaos_ogryn_houndmaster": "chaos_ogryn_houndmaster",
+  "chaos_poxwalker": "chaos_poxwalker",
+  "chaos_poxwalker_bomber": "chaos_poxwalker_bomber",
+  "chaos_spawn": "chaos_spawn",
+  "cultist_assault": "cultist_assault",
+  "cultist_berzerker": "cultist_berzerker",
+  "cultist_flamer": "cultist_flamer_gibbing",
+  "cultist_grenadier": "cultist_grenadier_gibbing",
+  "cultist_gunner": "cultist_gunner_gibbing",
+  "cultist_melee": "cultist_melee",
+  "cultist_mutant": "chaos_mutant_charger",
+  "cultist_mutant_mutator": "chaos_mutant_charger",
+  "cultist_ritualist": "cultist_ritualist",
+  "cultist_shocktrooper": "cultist_shocktrooper_gibbing",
+  "cultist_vanguard": "renegade_melee",
+  "renegade_assault": "renegade_assault_gibbing",
+  "renegade_berzerker": "renegade_berzerker_gibbing",
+  "renegade_executor": "renegade_executor_gibbing",
+  "renegade_flamer": "renegade_flamer_gibbing",
+  "renegade_flamer_mutator": "renegade_flamer_gibbing",
+  "renegade_grenadier": "renegade_grenadier_gibbing",
+  "renegade_gunner": "renegade_gunner_gibbing",
+  "renegade_melee": "renegade_melee",
+  "renegade_netgunner": "renegade_netgunner_gibbing",
+  "renegade_plasma_gunner": "renegade_plasma_gunner_gibbing",
+  "renegade_radio_operator": "renegade_gunner_gibbing",
+  "renegade_rifleman": "renegade_rifleman_gibbing",
+  "renegade_shocktrooper": "renegade_shocktrooper_gibbing",
+  "renegade_sniper": "renegade_sniper_gibbing",
+  "renegade_vanguard": "renegade_melee"
+ },
+ "cuts": {
+  "renegade_gunner_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_shocktrooper_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_ogryn_executor_gibbing_rotten_armor": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_ogryn_gunner": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_sniper_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_executor_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "cultist_shocktrooper_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_armored_hound": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine2"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_spine2"
+   }
+  ],
+  "chaos_mutated_poxwalker": [
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftshoulder"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftshoulder"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_rightshoulder",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_spine1"
+   }
+  ],
+  "renegade_berzerker_gibbing_rotten_armor": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_plasma_gunner_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_melee": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_flamer_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_newly_infected": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_leftshoulder",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_rightshoulder",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_spine"
+   }
+  ],
+  "cultist_flamer_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_assault_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "cultist_melee": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_lesser_mutated_poxwalker": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_leftshoulder",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_rightshoulder",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_spine1"
+   }
+  ],
+  "chaos_beast_of_nurgle": [
+   {
+    "scale": [
+     "j_spine"
+    ],
+    "stump": "j_hips",
+    "spawn": null
+   }
+  ],
+  "chaos_poxwalker": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_leftshoulder",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_rightshoulder",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_spine1"
+   }
+  ],
+  "renegade_executor_gibbing_rotten_armor": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_ogryn_executor": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": null,
+    "spawn": null
+   }
+  ],
+  "renegade_netgunner_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_berzerker_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_spawn": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck1",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_leftshoulder",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   }
+  ],
+  "chaos_ogryn_bulwark": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_grenadier_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "renegade_rifleman_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "cultist_grenadier_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "cultist_berzerker": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_hound": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine2"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_spine2"
+   }
+  ],
+  "cultist_assault": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_poxwalker_bomber": [
+   {
+    "scale": [
+     "j_spine"
+    ],
+    "stump": "j_hips",
+    "spawn": null
+   }
+  ],
+  "cultist_ritualist": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_daemonhost": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": null,
+    "spawn": null
+   }
+  ],
+  "renegade_captain_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": null,
+    "spawn": null
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": null,
+    "spawn": null
+   }
+  ],
+  "chaos_mutant_charger": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine2"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_spine2"
+   }
+  ],
+  "cultist_gunner_gibbing": [
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_neck"
+    ],
+    "stump": "j_spine1",
+    "spawn": "j_neck"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ],
+  "chaos_ogryn_houndmaster": [
+   {
+    "scale": [
+     "j_head"
+    ],
+    "stump": "j_neck",
+    "spawn": "j_head"
+   },
+   {
+    "scale": [
+     "j_leftarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_leftarm"
+   },
+   {
+    "scale": [
+     "j_leftforearm"
+    ],
+    "stump": "j_leftarm",
+    "spawn": "j_leftforearm"
+   },
+   {
+    "scale": [
+     "j_leftleg"
+    ],
+    "stump": "j_leftupleg",
+    "spawn": "j_leftleg"
+   },
+   {
+    "scale": [
+     "j_leftupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_leftupleg"
+   },
+   {
+    "scale": [
+     "j_rightarm"
+    ],
+    "stump": "j_spine2",
+    "spawn": "j_rightarm"
+   },
+   {
+    "scale": [
+     "j_rightforearm"
+    ],
+    "stump": "j_rightarm",
+    "spawn": "j_rightforearm"
+   },
+   {
+    "scale": [
+     "j_rightleg"
+    ],
+    "stump": "j_rightupleg",
+    "spawn": "j_rightleg"
+   },
+   {
+    "scale": [
+     "j_rightupleg"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_rightupleg"
+   },
+   {
+    "scale": [
+     "j_spine1"
+    ],
+    "stump": "j_hips",
+    "spawn": "j_hips"
+   }
+  ]
+ }
+}

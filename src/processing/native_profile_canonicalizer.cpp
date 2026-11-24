@@ -347,6 +347,7 @@ bool canonicalize_native_profile(Scene& scene, NativeProfileCanonicalizationRepo
     const std::size_t emitted_authored_nodes = can_omit_authored_refs ? 0u : nodes.size();
     if (emitted_authored_nodes + scene.primitives.size() + 1u > 65535u) {
         if (has_node_physics) { error = "node-bound physics exceeds UNIT node capacity"; return false; }
+        if (!scene.asset_definition.parts.empty()) { error = "an asset with own units (parts) exceeds the UNIT node capacity"; return false; }
         for (std::size_t i = 0; i < scene.primitives.size(); ++i) {
             auto& primitive = scene.primitives[i];
             const int source_node = primitive.source_node;

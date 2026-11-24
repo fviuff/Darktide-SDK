@@ -1,4 +1,4 @@
-#include "stingray/physics/physics_collection.h"
+﻿#include "stingray/physics/physics_collection.h"
 
 #include "stingray/murmur_hash.h"
 #include "stingray/physics/physx_context.h"
@@ -400,8 +400,8 @@ bool describe_physics_joints(const std::vector<std::uint8_t>& dependencies, cons
     return true;
 }
 
-bool describe_cooked_meshes(const std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>>& meshes,
-                            std::string& out, std::string& error) {
+bool read_cooked_meshes(const std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>>& meshes,
+                        std::vector<CookedMesh>& out, std::string& error) {
     std::lock_guard<std::recursive_mutex> guard(physx_context_mutex());
     PxFoundation* foundation = physics_foundation(error);
     if (!foundation) return false;
@@ -409,49 +409,57 @@ bool describe_cooked_meshes(const std::vector<std::pair<std::uint32_t, std::vect
     SdkObjects resources;
     PxPhysics* physics = resources.physics = PxCreatePhysics(PX_PHYSICS_VERSION, *foundation, scale, true, nullptr);
     if (!physics) { error = "PxCreatePhysics failed"; return false; }
-    std::ostringstream text;
-    text.precision(9);
-    text << "[";
+    out.assign(meshes.size(), {});
     for (std::size_t m = 0; m < meshes.size(); ++m) {
         const auto& [type, cooked] = meshes[m];
         std::vector<std::uint8_t> bytes = cooked;
         PxDefaultMemoryInputData input(bytes.data(), static_cast<PxU32>(bytes.size()));
-        text << (m ? "," : "") << "{\"vertices\":[";
+        auto& mesh_out = out[m];
         if (type == 4) {
             PxConvexMesh* mesh = physics->createConvexMesh(input);
             if (!mesh) { error = "a cooked convex mesh does not load"; return false; }
             resources.convex_meshes.push_back(mesh);
             const PxVec3* vertices = mesh->getVertices();
-            for (PxU32 v = 0; v < mesh->getNbVertices(); ++v)
-                text << (v ? "," : "") << vertices[v].x << "," << vertices[v].y << "," << vertices[v].z;
-            text << "],\"triangles\":[";
+            for (PxU32 v = 0; v < mesh->getNbVertices(); ++v) mesh_out.vertices.push_back({vertices[v].x, vertices[v].y, vertices[v].z});
             const PxU8* indices = mesh->getIndexBuffer();
-            bool first = true;
             for (PxU32 polygon = 0; polygon < mesh->getNbPolygons(); ++polygon) {
                 PxHullPolygon data;
                 mesh->getPolygonData(polygon, data);
-                for (PxU16 corner = 2; corner < data.mNbVerts; ++corner) {
-                    text << (first ? "" : ",") << int(indices[data.mIndexBase]) << "," << int(indices[data.mIndexBase + corner - 1])
-                         << "," << int(indices[data.mIndexBase + corner]);
-                    first = false;
-                }
+                for (PxU16 corner = 2; corner < data.mNbVerts; ++corner)
+                    mesh_out.triangles.insert(mesh_out.triangles.end(), {indices[data.mIndexBase], indices[data.mIndexBase + corner - 1],
+                                                                         indices[data.mIndexBase + corner]});
             }
         } else if (type == 3) {
             PxTriangleMesh* mesh = physics->createTriangleMesh(input);
             if (!mesh) { error = "a cooked triangle mesh does not load"; return false; }
             resources.triangle_meshes.push_back(mesh);
             const PxVec3* vertices = mesh->getVertices();
-            for (PxU32 v = 0; v < mesh->getNbVertices(); ++v)
-                text << (v ? "," : "") << vertices[v].x << "," << vertices[v].y << "," << vertices[v].z;
-            text << "],\"triangles\":[";
+            for (PxU32 v = 0; v < mesh->getNbVertices(); ++v) mesh_out.vertices.push_back({vertices[v].x, vertices[v].y, vertices[v].z});
             const bool wide = !mesh->getTriangleMeshFlags().isSet(PxTriangleMeshFlag::e16_BIT_INDICES);
             const void* triangles = mesh->getTriangles();
             for (PxU32 i = 0; i < mesh->getNbTriangles() * 3; ++i)
-                text << (i ? "," : "") << (wide ? static_cast<const PxU32*>(triangles)[i] : static_cast<const PxU16*>(triangles)[i]);
+                mesh_out.triangles.push_back(wide ? static_cast<const PxU32*>(triangles)[i] : static_cast<const PxU16*>(triangles)[i]);
         } else {
             error = "cooked mesh type must be 3 (triangles) or 4 (convex)";
             return false;
         }
+    }
+    return true;
+}
+
+bool describe_cooked_meshes(const std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>>& meshes,
+                            std::string& out, std::string& error) {
+    std::vector<CookedMesh> read;
+    if (!read_cooked_meshes(meshes, read, error)) return false;
+    std::ostringstream text;
+    text.precision(9);
+    text << "[";
+    for (std::size_t m = 0; m < read.size(); ++m) {
+        text << (m ? "," : "") << "{\"vertices\":[";
+        for (std::size_t v = 0; v < read[m].vertices.size(); ++v)
+            text << (v ? "," : "") << read[m].vertices[v][0] << "," << read[m].vertices[v][1] << "," << read[m].vertices[v][2];
+        text << "],\"triangles\":[";
+        for (std::size_t i = 0; i < read[m].triangles.size(); ++i) text << (i ? "," : "") << read[m].triangles[i];
         text << "]}";
     }
     text << "]\n";

@@ -252,6 +252,8 @@ set(DARKTIDE_COMPILER_CORE_SOURCES
     src/app/compiler.cpp
     src/app/asset_settings.cpp
     src/app/source_inspection.cpp
+    src/app/terrain_commands.cpp
+    src/compiler/terrain_builder.cpp
     src/gltf/glb_loader.cpp
     src/gltf/json_value.cpp
     src/gltf/gltf_images.cpp
@@ -274,19 +276,30 @@ set(DARKTIDE_COMPILER_CORE_SOURCES
     src/stingray/murmur_hash.cpp
     src/stingray/binary_writer.cpp
     src/stingray/cooked_resource.cpp
+    src/stingray/oodle.cpp
+    src/stingray/texture/texture_reader.cpp
+    src/stingray/shader/dxil_module.cpp
+    src/stingray/bundle/game_bundles.cpp
     src/stingray/particles/particles_resource.cpp
     src/stingray/flow/flow_resource.cpp
+    src/stingray/flow/flow_graph.cpp
+    src/stingray/flow/flow_names.cpp
     src/stingray/flow/flow_authoring.cpp
     src/stingray/physics/physx_cooking.cpp
     src/stingray/physics/authored_physics.cpp
     src/stingray/unit/unit_v115.cpp
     src/stingray/unit/script_data.cpp
+    src/stingray/unit/unit_reader.cpp
+    src/stingray/unit/unit_collision.cpp
+    src/stingray/terrain/terrain.cpp
     src/stingray/unit/unit_identity.cpp
     src/stingray/bones/bones_writer.cpp
     src/stingray/bones/bone_identity.cpp
     src/stingray/material/material_v61.cpp
     src/stingray/material/shader_compiler.cpp
+    src/stingray/material/surface_shader.cpp
     src/stingray/material/shader_section.cpp
+    src/stingray/material/dxil_constants.cpp
     src/stingray/material/emissive_profile.cpp
     src/stingray/material/pbr_emissive_profile.cpp
     src/stingray/material/mask_profile.cpp
@@ -296,7 +309,25 @@ set(DARKTIDE_COMPILER_CORE_SOURCES
     src/stingray/animation/animation_writer.cpp
     src/stingray/animation/animation_fitter.cpp
     src/stingray/animation/animation_evaluator.cpp
+    src/stingray/animation/animation_reader.cpp
+    src/stingray/level/level_reader.cpp
+    src/stingray/dynamic_data.cpp
+    src/stingray/level/level_document.cpp
+    src/stingray/level/level_light.cpp
+    src/stingray/level/level_prototypes.cpp
+    src/stingray/level/level_prototype_writer.cpp
+    src/stingray/level/level_package.cpp
+    src/stingray/level/level_navigation.cpp
+    src/stingray/level/level_navigation_inputs.cpp
+    src/stingray/lua_data_compiler.cpp
+    src/stingray/navigation/gwnav_generator.cpp
+    src/stingray/navigation/navdata_reader.cpp
+    src/stingray/volume_record.cpp
+    src/stingray/lua_constants.cpp
+    src/stingray/lua_components.cpp
+    src/stingray/shading_environment/shading_environment.cpp
     src/stingray/state_machine/state_machine_writer.cpp
+    src/stingray/state_machine/state_machine_reader.cpp
     src/validation/unit_validator.cpp
     third_party/mikktspace/mikktspace.c
 )
@@ -383,24 +414,20 @@ endif()
 file(GLOB DARKTIDE_BLENDER_ADDON_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/tools/blender/darktide_assets/*.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/tools/blender/darktide_assets/*.json")
-set(_darktide_blender_addon_entries)
-foreach(_addon_source IN LISTS DARKTIDE_BLENDER_ADDON_SOURCES)
-    file(RELATIVE_PATH _addon_entry
-        "${CMAKE_CURRENT_SOURCE_DIR}/tools/blender" "${_addon_source}")
-    list(APPEND _darktide_blender_addon_entries "${_addon_entry}")
-endforeach()
 set(DARKTIDE_BLENDER_ADDON_ZIP "${CMAKE_CURRENT_BINARY_DIR}/darktide_assets_blender.zip")
+set(_addon_stage "${CMAKE_CURRENT_BINARY_DIR}/addon_stage")
 add_custom_command(
     OUTPUT "${DARKTIDE_BLENDER_ADDON_ZIP}"
-    COMMAND "${CMAKE_COMMAND}" -E tar cf "${DARKTIDE_BLENDER_ADDON_ZIP}"
-        --format=zip -- ${_darktide_blender_addon_entries}
+    COMMAND "${CMAKE_COMMAND}" -E rm -rf "${_addon_stage}"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${_addon_stage}/darktide_assets"
+    COMMAND "${CMAKE_COMMAND}" -E copy ${DARKTIDE_BLENDER_ADDON_SOURCES} "${_addon_stage}/darktide_assets"
+    COMMAND "${CMAKE_COMMAND}" -E chdir "${_addon_stage}" "${CMAKE_COMMAND}" -E tar cf "${DARKTIDE_BLENDER_ADDON_ZIP}" --format=zip -- darktide_assets
     DEPENDS ${DARKTIDE_BLENDER_ADDON_SOURCES}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tools/blender"
     COMMENT "Packaging the Darktide Blender addon"
     VERBATIM)
 add_custom_target(DarktideBlenderAddonZip ALL DEPENDS "${DARKTIDE_BLENDER_ADDON_ZIP}")
 
-# The release archive intentionally contains only these three root-level files.
+# The release archive intentionally contains only these root-level files.
 # One archive serves Windows and Linux: on Linux the addon runs the same exe through Wine.
 install(TARGETS DarktideGLBCompiler RUNTIME DESTINATION ".")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md" DESTINATION ".")

@@ -1,4 +1,5 @@
 #include "stingray/animation/animation_evaluator.h"
+#include "stingray/animation/animation_reader.h"
 #include "stingray/animation/animation_writer.h"
 #include "stingray/cooked_resource.h"
 #include "gltf/animation_sampler.h"
@@ -16,35 +17,10 @@ template<class T> T read(const std::vector<std::uint8_t>& data, std::size_t offs
 int channel(AnimationPath path) {
     return path == AnimationPath::Translation ? 0 : path == AnimationPath::Rotation ? 1 : path == AnimationPath::Scale ? 2 : -1;
 }
-struct Control { float time = 0; std::array<float,4> value{}; };
-using Window = std::array<Control,4>;
+using Control = AnimationControl;
+using Window = ControlWindow;
 bool sample_window(const Window& state, float query, int path, std::array<float,4>& out) {
-    if (query >= state[3].time || (path != 2 && query >= state[2].time && state[1].time == 0 && state[2].time == 0)) {
-        out = state[3].value; return true;
-    }
-    const Window w = query >= state[2].time ? Window{state[1],state[2],state[3],state[3]} : state;
-    const double dt = double(w[2].time)-w[1].time;
-    const double d0 = double(w[2].time)-w[0].time, d1 = double(w[3].time)-w[1].time;
-    if (dt <= 0 || d0 <= 0 || d1 <= 0) return false;
-    const double u = (double(query)-w[1].time)/dt, u2 = u*u, u3 = u2*u;
-    std::array<double,4> result{};
-    const int width = path == 1 ? 4 : 3;
-    for (int c = 0; c < width; ++c) {
-        const double m1 = (double(w[2].value[c])-w[0].value[c])*dt/d0;
-        const double m2 = (double(w[3].value[c])-w[1].value[c])*dt/d1;
-        result[c] = (2*u3-3*u2+1)*w[1].value[c] + (u3-2*u2+u)*m1
-                  + (-2*u3+3*u2)*w[2].value[c] + (u3-u2)*m2;
-    }
-    if (path == 1) {
-        double norm = 0; for (double v : result) norm += v*v;
-        if (norm == 0) result = {0,0,0,1};
-        else { if (!std::isfinite(norm)) return false; for (double& v : result) v /= std::sqrt(norm); }
-    }
-    for (int c = 0; c < width; ++c) {
-        if (!std::isfinite(result[c]) || std::abs(result[c]) > std::numeric_limits<float>::max()) return false;
-        out[c] = static_cast<float>(result[c]);
-    }
-    return true;
+    return sample_control_window(state, query, path, out);
 }
 }
 

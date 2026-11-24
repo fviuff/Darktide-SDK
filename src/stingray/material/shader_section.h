@@ -67,8 +67,8 @@ struct ConstantBufferReflection {
 struct PassInfo {
     std::uint32_t layer = 0;
     std::uint64_t sort_key = 0;
-    std::uint32_t value = 0;
     std::uint8_t instanced = 0;
+    std::uint32_t branch_key = 0; // shader pass flag the pass is drawn under (Stingray's branch_key), or 0
 };
 
 struct ShaderData {
@@ -99,6 +99,37 @@ struct ShaderSection {
 };
 
 bool decode_shader_section(const std::vector<std::uint8_t>& bytes, ShaderSection& out, std::string& error);
+
+// A shader_library_group resource (version 0x6a, engine loader FUN_1402c7320 -> FUN_1402cabb0 per library): the
+// engine's own shaders that materials pick by name (material stream direct shader selector) instead of through a
+// shader provider. Each library: u32 0x6a, shader_data and device_data laid out as in a shader section, between them
+// three lists (meaning open, kept as they are).
+struct ShaderLibraryTemplate {
+    struct Item {
+        std::uint32_t name = 0;
+        std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>> entries;  // {u32, byte array}
+    };
+    std::uint32_t name = 0;
+    std::vector<Item> items;
+};
+
+struct ShaderLibrary {
+    std::uint32_t version = 0x6a;
+    std::vector<ShaderData> shader_data;
+    std::vector<std::vector<std::array<std::uint32_t, 5>>> records;
+    std::vector<std::vector<std::uint32_t>> lists;
+    std::vector<ShaderLibraryTemplate> templates;
+    std::vector<DeviceShader> device_data;
+};
+
+struct ShaderLibraryGroup {
+    std::uint32_t version = 0x6a;
+    std::vector<ShaderLibrary> libraries;
+};
+
+// body: the resource after its bundle envelope
+bool decode_shader_library_group(const std::vector<std::uint8_t>& body, ShaderLibraryGroup& out, std::string& error);
+std::vector<std::uint8_t> encode_shader_library_group(const ShaderLibraryGroup& group);
 // condition_language programs (Darktide VM version 1, FUN_1407125c0) choose between a context's shaders: the first
 // shader whose condition passes is drawn. intrinsic answers a call (name, arguments) with true or false, or with
 // nothing when that can't be known ahead of time; the condition's answer is then unknown too.

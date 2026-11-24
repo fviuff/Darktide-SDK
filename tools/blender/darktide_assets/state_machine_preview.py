@@ -471,7 +471,7 @@ class DARKTIDE_OT_sm_preview(bpy.types.Operator):
     bl_description = "Play the state graph on the rig like the game runs it (send events and set variables below)"
 
     def execute(self, context):
-        from . import _asset_options
+        from .settings import _asset_options
         if _preview is not None:
             stop()
             return {"FINISHED"}

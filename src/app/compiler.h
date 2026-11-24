@@ -74,9 +74,12 @@ struct CompileOptions {
     std::optional<std::string> asset_path;
     std::optional<std::filesystem::path> reference_bones_file;
     std::optional<std::string> skeleton_resource;
+    // Material layers written into the UNIT: layer name -> material resource (path or #ID[hash]).
+    std::vector<std::pair<std::string, std::string>> material_layers;
     bool auto_materials = true;
     bool physics = true;
     bool validate = true;
+    bool write_manifest = false;  // compile_manifest.json: what was built and how (--manifest)
     // Universal-render mode bakes the authored fixed morph state by default.
     bool allow_fixed_morph_bake = true;
     bool allow_animation_resampling = false;

@@ -26,6 +26,9 @@ struct WriteOptions {
 
     // Optional external BONES resource referenced by the UNIT footer.
     std::string skeleton_resource;
+    // Material layers (Unit.set_material_layer): layer name -> material resource drawn on top when enabled,
+    // e.g. the game's enemy outlines minion_outline / minion_outline_reversed_depth.
+    std::vector<std::pair<std::string, std::string>> material_layers;
     // Optional same-identity STATE_MACHINE referenced by animation_state_machine.
     std::string animation_state_machine_resource;
     // Optional embedded simple animation: an ANIMATION body (no resource envelope)

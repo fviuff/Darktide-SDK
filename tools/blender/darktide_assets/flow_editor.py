@@ -15,6 +15,7 @@ LABELS = {
     "unit_unspawned": "Unit Unspawned",
     "external_event": "Flow Event",
     "physics_trigger": "Trigger Volume",
+    "actor_contact": "Actor Contact",
     "particle_effect": "Particle Effect",
     "set_unit_visibility": "Set Visibility",
     "animation_event": "Animation Event",
@@ -43,6 +44,8 @@ DESCRIPTIONS = {
     "external_event": "Fires when a script calls Unit.flow_event(unit, \"<event>\")",
     "physics_trigger": "Fires enter / leave when something moves into or out of a trigger collider of the unit "
                        "(a collider with Shape template trigger, named in Actor)",
+    "actor_contact": "Fires start / stay / end when the body named in Actor touches something, with where and how hard "
+                     "(the game's gib pieces call FlowCallbacks.blood_ball_collision on start for the blood splat)",
     "particle_effect": "Plays a particle effect (create), stops spawning (stop) or removes it (kill)",
     "set_unit_visibility": "Shows or hides a visibility group, or the whole unit when the group is empty",
     "animation_event": "Sends an event to the unit's animation state machine",
@@ -121,6 +124,7 @@ SOCKETS = {
     "mesh": _socket_class("mesh", (0.9, 0.45, 0.2, 1.0)),
     "material": _socket_class("material", (0.9, 0.3, 0.55, 1.0)),
     "light": _socket_class("light", (0.95, 0.85, 0.3, 1.0)),
+    "actor": _socket_class("actor", (0.85, 0.55, 0.3, 1.0)),
 }
 # inputs whose starting value differs from the socket default
 INPUT_DEFAULTS = {("set_unit_visibility", "visible"): True}
@@ -151,13 +155,13 @@ class _FlowNode:
     def draw_buttons(self, context, layout):
         if self.flow_type == "external_event":
             layout.prop(self, "event")
-        if self.flow_type == "physics_trigger":
+        if self.flow_type in ("physics_trigger", "actor_contact"):
             layout.prop(self, "actor")
         if self.flow_type == "set_material_variable":
             layout.prop(self, "value_kind", expand=True)
 
 
-KINDS = ("unit", "bool", "uint", "float", "vector3", "quaternion", "string", "name")
+KINDS = ("unit", "bool", "uint", "float", "vector3", "quaternion", "string", "name", "actor")
 
 
 def _parse_slots(text):
@@ -257,6 +261,9 @@ def _node_class(flow_type):
     if flow_type == "physics_trigger":
         attrs["__annotations__"] = {"actor": StringProperty(
             name="Actor", description="The trigger collider this node watches (its object name)")}
+    if flow_type == "actor_contact":
+        attrs["__annotations__"] = {"actor": StringProperty(
+            name="Actor", description="The body this node watches (its object name)")}
     if flow_type == "set_material_variable":
         attrs["__annotations__"] = {"value_kind": EnumProperty(
             name="Value", update=_show_material_value, default="value",
@@ -305,9 +312,10 @@ def description(tree):
             if not node.event.strip():
                 raise ValueError("Flow node '%s' needs an event name" % node.name)
             record["event"] = node.event.strip()
-        if node.flow_type == "physics_trigger":
+        if node.flow_type in ("physics_trigger", "actor_contact"):
             if not node.actor.strip():
-                raise ValueError("Flow node '%s' needs the trigger collider it watches" % node.name)
+                raise ValueError("Flow node '%s' needs the %s it watches" % (
+                    node.name, "trigger collider" if node.flow_type == "physics_trigger" else "body"))
             record["actor"] = node.actor.strip()
         inputs = {}
         for socket in node.inputs:

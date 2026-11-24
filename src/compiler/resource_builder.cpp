@@ -187,6 +187,50 @@ Scene with_skeleton_carrier(const Scene& source, std::size_t skin_index) {
     return lowered;
 }
 
+std::set<int> subtree_nodes(const Scene& scene, const std::vector<int>& roots) {
+    std::set<int> nodes;
+    std::vector<int> pending(roots);
+    while (!pending.empty()) {
+        const int index = pending.back(); pending.pop_back();
+        if (index < 0 || static_cast<std::size_t>(index) >= scene.nodes.size() || !nodes.insert(index).second) continue;
+        const auto& children = scene.nodes[static_cast<std::size_t>(index)].children;
+        pending.insert(pending.end(), children.begin(), children.end());
+    }
+    return nodes;
+}
+
+// The scene as one unit of the build sees it: the nodes under its roots and what hangs on them.
+// primitive_map gives each kept primitive's index in the whole scene.
+Scene unit_subscene(const Scene& scene, const std::vector<int>& roots, bool main,
+                    std::vector<std::size_t>& primitive_map) {
+    const auto nodes = subtree_nodes(scene, roots);
+    const auto inside = [&](int node) { return nodes.count(node) != 0; };
+    Scene out = scene;
+    out.scene_roots = roots;
+    out.primitives.clear();
+    primitive_map.clear();
+    for (std::size_t i = 0; i < scene.primitives.size(); ++i)
+        if (inside(scene.primitives[i].source_node)) { out.primitives.push_back(scene.primitives[i]); primitive_map.push_back(i); }
+    out.collider_primitives.clear();
+    for (const auto& primitive : scene.collider_primitives)
+        if (inside(primitive.source_node)) out.collider_primitives.push_back(primitive);
+    auto& d = out.asset_definition;
+    const auto keep = [&](auto& list) {
+        list.erase(std::remove_if(list.begin(), list.end(), [&](const auto& entry) { return !inside(entry.source_node); }),
+                   list.end());
+    };
+    keep(d.colliders); keep(d.node_bodies); keep(d.joints); keep(d.node_actors); keep(d.volumes);
+    keep(d.visibility_groups); keep(d.dangles); keep(d.aims); keep(d.lod_levels); keep(d.render_settings);
+    keep(d.light_settings);
+    if (!main) { d.body.reset(); d.movers.clear(); }
+    d.flow.clear();
+    d.script_data.clear();
+    for (const auto& [node, text] : scene.asset_definition.unit_flows) if (inside(node)) d.flow = text;
+    for (const auto& [node, text] : scene.asset_definition.unit_script_data) if (inside(node)) d.script_data = text;
+    d.parts.clear();
+    return out;
+}
+
 void set_feature_status(std::vector<std::string>& statuses, const std::string& feature,
                         const std::string& value) {
     for (std::size_t i = 0; i + 1 < statuses.size(); i += 2) {
@@ -205,7 +249,16 @@ bool build_glb_resources(const Scene& source, const app::CompileOptions& options
     if (!plan.gaps.empty()) { error = "cannot build resources from an unsupported compilation plan"; return false; }
     const auto& base = context.file_base();
     const auto no_skin = static_cast<std::size_t>(-1);
-    const auto selected = plan.skin_index.value_or(no_skin);
+    auto selected = plan.skin_index.value_or(no_skin);
+    if (selected != no_skin && !source.asset_definition.parts.empty()) {
+        // the plan's skin can be a part's own armature; the main unit then has none (the part carries its BONES)
+        std::vector<int> part_roots;
+        for (const auto& part : source.asset_definition.parts) part_roots.push_back(part.source_node);
+        const auto in_parts = subtree_nodes(source, part_roots);
+        const auto& joints = source.skins[selected].joints;
+        if (!joints.empty() && std::all_of(joints.begin(), joints.end(), [&](int joint) { return in_parts.count(joint) != 0; }))
+            selected = no_skin;
+    }
     Scene reference_scene;
     bool reference_subset = false;
     const Scene* emitted_source = &source;
@@ -224,42 +277,91 @@ bool build_glb_resources(const Scene& source, const app::CompileOptions& options
         set_feature_status(feature_status, "bones", reference_subset ? "emitted_reference_subset" :
             options.reference_bones_file ? "external_reference" : "emitted");
     }
-    if (plan.emit_unit) {
-        const bool skeleton_unit = !plan.placeholder_unit && emitted_source->primitives.empty() && selected != no_skin;
-        const Scene placeholder = plan.placeholder_unit ? with_placeholder_geometry(*emitted_source) :
-            skeleton_unit ? with_skeleton_carrier(*emitted_source, selected) : Scene{};
-        const Scene& unit_scene = plan.placeholder_unit || skeleton_unit ? placeholder : *emitted_source;
-        const auto unit_key = context.generated_key("unit", base);
+    // Parts are extra units of this build (asset_definition.h PartDefinition). Their materials are built once
+    // with the main unit's, over the whole scene, so every unit shares them and their textures.
+    const auto& parts = emitted_source->asset_definition.parts;
+    std::vector<std::string> material_names;
+    material_names.reserve(source.materials.size());
+    for (const auto& material : source.materials) material_names.push_back(material.name);
+    stingray::unit::MaterialSlotLowering all_slots;
+    std::vector<std::pair<std::string, std::string>> all_bindings;
+    if (plan.emit_unit && !parts.empty()) {
+        std::vector<int> indices;
+        for (const auto& primitive : emitted_source->primitives) indices.push_back(primitive.material);
+        all_slots = stingray::unit::lower_material_slots(material_names, indices);
+        if (plan.emit_materials && options.material_override.empty() &&
+            !build_core_materials(source, context, graph, all_bindings, error, &all_slots)) return false;
+    }
+    // One UNIT of the build: the main one or a part (primitive_map: its primitives' indices in the whole scene).
+    const auto emit_one_unit = [&](const Scene& unit_source, const std::string& stem, bool main,
+                                   const std::vector<std::size_t>& primitive_map) -> bool {
+        const bool skeleton_unit = main && !plan.placeholder_unit && unit_source.primitives.empty() && selected != no_skin;
+        const bool placeholder_unit = main && (plan.placeholder_unit || (!parts.empty() && unit_source.primitives.empty() && !skeleton_unit));
+        const Scene placeholder = placeholder_unit ? with_placeholder_geometry(unit_source) :
+            skeleton_unit ? with_skeleton_carrier(unit_source, selected) : Scene{};
+        const Scene& unit_scene = placeholder_unit || skeleton_unit ? placeholder : unit_source;
+        if (!main && unit_scene.primitives.empty()) { error = "part '" + stem + "' has no meshes"; return false; }
+        const auto unit_key = context.generated_key("unit", stem);
         stingray::unit::WriteOptions unit_options;
         unit_options.resource_name = unit_key.name;
-        if (plan.state_machine_animation_index || !plan.state_machine_states.empty() || plan.rest_state)
+        if (main && (plan.state_machine_animation_index || !plan.state_machine_states.empty() || plan.rest_state))
             unit_options.animation_state_machine_resource = unit_key.name;
         unit_options.material_override = options.material_override;
+        unit_options.material_layers = options.material_layers;
         unit_options.authored_physics = options.physics;
-        unit_options.ragdoll_handoff = !plan.ragdoll_event.empty();
-        if (options.physics && options.fitted_physics)
+        unit_options.ragdoll_handoff = main && !plan.ragdoll_event.empty();
+        if (main && options.physics && options.fitted_physics)
             unit_options.fitted_physics = options.fitted_physics;
         std::vector<int> material_indices;
         material_indices.reserve(unit_scene.primitives.size());
         for (const auto& primitive : unit_scene.primitives) material_indices.push_back(primitive.material);
-        std::vector<std::string> material_names;
-        material_names.reserve(source.materials.size());
-        for (const auto& material : source.materials) material_names.push_back(material.name);
-        const auto material_slots = stingray::unit::lower_material_slots(material_names, material_indices);
-        unit_options.primitive_material_slots = material_slots.primitive_slots;
+        const auto material_slots = parts.empty() ? stingray::unit::lower_material_slots(material_names, material_indices)
+                                                  : stingray::unit::MaterialSlotLowering{};
+        if (parts.empty()) {
+            unit_options.primitive_material_slots = material_slots.primitive_slots;
+        } else {
+            // added placeholder/carrier triangles have no material
+            for (std::size_t i = 0; i < unit_scene.primitives.size(); ++i)
+                unit_options.primitive_material_slots.push_back(
+                    i < primitive_map.size() ? all_slots.primitive_slots[primitive_map[i]] : std::string("__no_material__"));
+        }
         // The selected skin is also used for animation-only scenes.  UNIT's
         // skeleton field, however, is cardinality-coupled to the skins that
         // its own primitives reference; an animation-only synthetic skin must
         // not make a static/placeholder UNIT claim a BONES resource.
-        const bool unit_uses_selected_skin = selected != no_skin && std::any_of(
+        const bool unit_uses_selected_skin = main && selected != no_skin && std::any_of(
             unit_scene.primitives.begin(), unit_scene.primitives.end(), [&](const Primitive& primitive) {
                 return primitive.source_node >= 0 &&
                     static_cast<std::size_t>(primitive.source_node) < unit_scene.nodes.size() &&
                     unit_scene.nodes[static_cast<std::size_t>(primitive.source_node)].skin ==
                         static_cast<int>(selected);
             });
+        std::set<ResourceKey> dependencies;
         if (unit_uses_selected_skin) unit_options.skeleton_resource = bones.name;
-        if (plan.simple_animation_index && unit_uses_selected_skin && !plan.placeholder_unit) {
+        if (!main) {
+            // a skinned part carries its own BONES; its skin's joints have to be inside the part
+            std::set<int> skins;
+            for (const auto& primitive : unit_scene.primitives)
+                if (primitive.source_node >= 0 && unit_scene.nodes[static_cast<std::size_t>(primitive.source_node)].skin >= 0)
+                    skins.insert(unit_scene.nodes[static_cast<std::size_t>(primitive.source_node)].skin);
+            if (skins.size() > 1) { error = "part '" + stem + "' uses more than one armature"; return false; }
+            if (!skins.empty()) {
+                const auto& skin = unit_scene.skins[static_cast<std::size_t>(*skins.begin())];
+                const auto inside = subtree_nodes(unit_scene, unit_scene.scene_roots);
+                for (const int joint : skin.joints)
+                    if (!inside.count(joint)) {
+                        error = "part '" + stem + "' is skinned to bone '" + unit_scene.nodes[static_cast<std::size_t>(joint)].name +
+                            "', which isn't inside the part (put the armature under the part)";
+                        return false;
+                    }
+                const auto part_bones = context.generated_key("bones", stem + "_bones");
+                graph.owned.push_back({part_bones, stem + "_bones.bones",
+                    stingray::bones::BonesResource{part_bones.name, canonical_bone_names(skin), {}}, {}});
+                unit_options.skeleton_resource = part_bones.name;
+                dependencies.insert(part_bones);
+            }
+        }
+        if (plan.simple_animation_index && unit_uses_selected_skin && !placeholder_unit) {
             stingray::animation::BuiltAnimation simple;
             if (!stingray::animation::build_skeletal_animation(*emitted_source, emitted_source->skins[selected],
                     emitted_source->animations[*plan.simple_animation_index], unit_key.name, simple, error,
@@ -273,7 +375,14 @@ bool build_glb_resources(const Scene& source, const app::CompileOptions& options
         // The command-line override intentionally replaces every per-slot
         // material choice, including authored external and generated intents.
         if (plan.emit_materials && options.material_override.empty()) {
-            if (!build_core_materials(source, context, graph, unit_options.material_bindings, error, &material_slots)) return false;
+            if (parts.empty()) {
+                if (!build_core_materials(source, context, graph, unit_options.material_bindings, error, &material_slots)) return false;
+            } else {
+                for (const auto& binding : all_bindings)
+                    if (std::find(unit_options.primitive_material_slots.begin(), unit_options.primitive_material_slots.end(),
+                                  binding.first) != unit_options.primitive_material_slots.end())
+                        unit_options.material_bindings.push_back(binding);
+            }
             if (!unit_options.material_bindings.empty()) {
                 const auto used = used_material_indices(source);
                 const bool has_external = std::any_of(used.begin(), used.end(), [&](std::size_t index) {
@@ -282,9 +391,8 @@ bool build_glb_resources(const Scene& source, const app::CompileOptions& options
                 set_feature_status(feature_status, "materials", has_external ? "emitted_per_slot_materials" : "emitted_core_pbr");
             }
         }
-        std::set<ResourceKey> dependencies;
         if (unit_uses_selected_skin) dependencies.insert(bones);
-        if (plan.state_machine_animation_index || !plan.state_machine_states.empty() || plan.rest_state)
+        if (main && (plan.state_machine_animation_index || !plan.state_machine_states.empty() || plan.rest_state))
             dependencies.insert({"state_machine", unit_key.name});
         for (const auto& binding : unit_options.material_bindings) dependencies.insert({"material", binding.second});
         if (!options.material_override.empty()) {
@@ -315,18 +423,39 @@ bool build_glb_resources(const Scene& source, const app::CompileOptions& options
                 return false;
             }
             std::vector<std::uint8_t> body(blob.begin() + 38, blob.end());
-            const auto stem = game_copy_stem("ies_" + std::string(hex), body);
-            const auto key = game_copy_key("ies", stem);
+            const auto ies_stem = game_copy_stem("ies_" + std::string(hex), body);
+            const auto key = game_copy_key("ies", ies_stem);
             if (std::none_of(graph.owned.begin(), graph.owned.end(), [&](const auto& node) { return node.key == key; }))
-                graph.owned.push_back({key, stem + ".ies", IesResource{std::move(body)}, {}});
+                graph.owned.push_back({key, ies_stem + ".ies", IesResource{std::move(body)}, {}});
             dependencies.insert(key);
             unit_options.light_ies[light.source_node] = stingray::resource_name_hash(key.name);
         }
         stingray::unit::UnitResource unit;
-        if (!stingray::unit::build_unit_v115(unit_scene, unit, error, unit_options)) return false;
-        graph.owned.push_back({unit_key, base + ".unit", std::move(unit), {dependencies.begin(), dependencies.end()}});
+        if (!stingray::unit::build_unit_v115(unit_scene, unit, error, unit_options)) {
+            if (!main) error = "part '" + stem + "': " + error;
+            return false;
+        }
+        graph.owned.push_back({unit_key, stem + ".unit", std::move(unit), {dependencies.begin(), dependencies.end()}});
         graph.roots.push_back(unit_key);
         set_feature_status(feature_status, "unit", "emitted");
+        return true;
+    };
+    if (plan.emit_unit) {
+        if (parts.empty()) {
+            if (!emit_one_unit(*emitted_source, base, true, {})) return false;
+        } else {
+            std::vector<int> main_roots;
+            for (const int root : emitted_source->scene_roots)
+                if (std::none_of(parts.begin(), parts.end(), [&](const PartDefinition& part) { return part.source_node == root; }))
+                    main_roots.push_back(root);
+            std::vector<std::size_t> map;
+            if (!emit_one_unit(unit_subscene(*emitted_source, main_roots, true, map), base, true, map)) return false;
+            for (const auto& part : parts) {
+                if (part.name == base) { error = "part '" + part.name + "' has the asset's own name"; return false; }
+                if (!emit_one_unit(unit_subscene(*emitted_source, {part.source_node}, false, map), part.name, false, map))
+                    return false;
+            }
+        }
     }
     if (plan.emit_animations && selected != no_skin) {
         for (const auto i : plan.animation_indices) {

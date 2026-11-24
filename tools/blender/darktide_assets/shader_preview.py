@@ -169,7 +169,7 @@ _programs = {}
 
 
 def _run(arguments):
-    from . import _compiler_path, _run_compiler, _wine_tools, _windows_path
+    from .export import _compiler_path, _run_compiler, _wine_tools, _windows_path
     compiler = _compiler_path()
     wine = _wine_tools(compiler)
     converted = [_windows_path(a, wine) if os.path.isabs(a) else a for a in arguments]

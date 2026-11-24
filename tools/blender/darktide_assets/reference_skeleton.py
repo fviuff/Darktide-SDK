@@ -1,5 +1,6 @@
 """Small reader for native Darktide UNIT scene graphs and BONES tables."""
 
+import json
 import math
 import struct
 
@@ -230,8 +231,29 @@ def _parse_bones(blob, resource_name=None):
     return names, hashes
 
 
+def _load_json_reference(path, bones_path, resource_name):
+    """A skeleton saved as JSON: {"scene_node_count", "nodes": [{"name", "parent", "world"}]} in BONES order."""
+    with open(path, "r", encoding="utf-8") as source:
+        try:
+            data = json.load(source)
+        except ValueError as exc:
+            raise ReferenceSkeletonError("Skeleton file is not valid JSON: " + str(exc)) from exc
+    with open(bones_path, "rb") as source:
+        names, _ = _parse_bones(source.read(), resource_name)
+    nodes = data.get("nodes") or []
+    if [node.get("name") for node in nodes] != names:
+        raise ReferenceSkeletonError("Skeleton file does not list the BONES names in order")
+    for node in nodes:
+        if len(node.get("world") or ()) != 16 or (node.get("parent") is not None and node["parent"] not in names):
+            raise ReferenceSkeletonError("Skeleton file node " + node["name"] + " is malformed")
+    return ([{"name": node["name"], "parent": node.get("parent"), "world": tuple(node["world"])} for node in nodes],
+            int(data.get("scene_node_count") or len(nodes)))
+
+
 def load_reference(unit_path, bones_path, resource_name=None):
     """Return BONES-ordered nodes with nearest named parent and native world matrix."""
+    if unit_path.lower().endswith(".json"):
+        return _load_json_reference(unit_path, bones_path, resource_name)
     with open(unit_path, "rb") as source:
         unit_nodes = _parse_unit(source.read())
     with open(bones_path, "rb") as source:

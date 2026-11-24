@@ -548,7 +548,7 @@ bool validate_unit_v115(const std::filesystem::path& path, std::string& report,
             skinned != geometries[i].skinned || !valid_skin_ref ||
             // 0x8 drawn by a LOD, 0x4 culling disabled (earlier builds set it on every mesh)
             ((render_flags & ~0xCu) != 0x000c2003u && (render_flags & ~0xCu) != 0x000c2001u &&
-             (render_flags & ~0xCu) != 0x00002002u) ||
+             (render_flags & ~0xCu) != 0x00002002u && (render_flags & ~0xCu) != 0x00000001u) ||
             kind != 3 || enabled != 1) {
             char detail[160];
             std::snprintf(detail, sizeof detail, " (mesh %u: node %u, geometry %u, skin %u, render flags 0x%x, kind %u, enabled %u)",
@@ -807,12 +807,23 @@ bool validate_unit_v115(const std::filesystem::path& path, std::string& report,
         return false;
     }
 
-    std::uint64_t reserved = 0;
-    for (int i = 0; i < 2; ++i) {
-        if (!r.u64(reserved) || reserved != 0) {
-            report = "invalid: final reserved region changed";
+    std::uint32_t reserved_count = 0, layer_count = 0;
+    if (!r.u32(reserved_count) || reserved_count != 0 || !r.u32(layer_count) || layer_count > 64) {
+        report = "invalid: material layer table is malformed";
+        return false;
+    }
+    for (std::uint32_t i = 0; i < layer_count; ++i) {
+        std::uint32_t layer = 0, extra = 0;
+        std::uint64_t layer_material = 0;
+        if (!r.u32(layer) || !r.u64(layer_material) || !r.u32(extra) || layer == 0 || layer_material == 0 || extra != 0) {
+            report = "invalid: material layer entry is malformed";
             return false;
         }
+    }
+    std::uint64_t reserved = 0;
+    if (!r.u64(reserved) || reserved != 0) {
+        report = "invalid: final reserved region changed";
+        return false;
     }
     std::uint64_t skeleton_resource = 0;
     if (!r.u64(skeleton_resource) || ((skin_count != 0u) != (skeleton_resource != 0u))) {

@@ -552,6 +552,13 @@ bool canonicalize_animations(Scene& scene, AnimationCanonicalizationReport& repo
         return true;
     }
 
+    // Object animation becomes one skin over the whole scene (or a baked rest pose), which can't keep the units of
+    // a build with parts apart.
+    if (!scene.asset_definition.parts.empty()) {
+        error = "object animation in an asset with own units (parts) can't be compiled yet: animate it with an "
+                "armature, or put the animated objects in an asset of their own";
+        return false;
+    }
     // Earlier universal-lowering stages may deliberately detach geometry that
     // cannot fit the single native skin profile. Its current channels are then
     // the authoritative static world/initial-pose representation.

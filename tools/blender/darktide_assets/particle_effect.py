@@ -202,6 +202,9 @@ class DarktideParticleMaterial(bpy.types.PropertyGroup):
     values: StringProperty(name="Values", description="Variables to change, e.g. color=1,0.2,0.1; intensity=4")
     textures: StringProperty(name="Textures",
                              description="Channels to replace with your images, e.g. diffuse_map=//fire.png")
+    shader_constants: StringProperty(
+        name="Shader numbers",
+        description="Numbers in the shader code to change, old=new, e.g. 0.0120000001=0.04")
 
 
 class DarktideParticleSettings(bpy.types.PropertyGroup):
@@ -538,7 +541,7 @@ def import_game_effect(settings, extract, decode):
 def load_materials(settings, extract, game_folder):
     """List the game's materials the effect draws with, keeping edits already made."""
     found = referenced_materials(description(settings))
-    previous = {item.material_hash: (item.values, item.textures) for item in settings.materials}
+    previous = {item.material_hash: (item.values, item.textures, item.shader_constants) for item in settings.materials}
     settings.materials.clear()
     bundle = os.path.join(bpy.path.abspath(game_folder), "bundle")
     for material_hash in found:
@@ -551,7 +554,7 @@ def load_materials(settings, extract, game_folder):
             item.info_texture_ids = ",".join("%016x" % resource for _, resource in textures)
         except (OSError, ValueError, struct.error):
             item.info_values = "not one of the game's materials in the extract"
-        item.values, item.textures = previous.get(item.material_hash, ("", ""))
+        item.values, item.textures, item.shader_constants = previous.get(item.material_hash, ("", "", ""))
     return len(found)
 
 
@@ -567,6 +570,21 @@ def _parse_values(text):
         if not 1 <= len(numbers) <= 4 or not all(math.isfinite(number) for number in numbers):
             raise ValueError("'" + name + "' needs 1 to 4 finite numbers")
         result[name] = numbers[0] if len(numbers) == 1 else numbers
+    return result
+
+
+def _parse_shader_constants(text):
+    """{old number (as written): new number}"""
+    result = {}
+    for part in text.replace("\n", ";").split(";"):
+        if not part.strip():
+            continue
+        if "=" not in part:
+            raise ValueError("Expected old=new in '" + part.strip() + "'")
+        old, new = (item.strip() for item in part.split("=", 1))
+        if not all(math.isfinite(float(number)) for number in (old, new)):
+            raise ValueError("'" + part.strip() + "' needs finite numbers")
+        result["%.9g" % float(old)] = float(new)
     return result
 
 
@@ -596,8 +614,9 @@ def node_extras(obj, extract, path_converter):
     materials = {}
     for item in settings.materials:
         values, textures = _parse_values(item.values), _parse_textures(item.textures, path_converter)
-        if values or textures:
-            materials[item.material_hash] = {"variables": values, "textures": textures}
+        constants = _parse_shader_constants(item.shader_constants)
+        if values or textures or constants:
+            materials[item.material_hash] = {"variables": values, "textures": textures, "shader_constants": constants}
     # as text: Blender's custom properties cannot hold the description's 32-bit unsigned numbers
     return {"name": name, "effect": json.dumps(description(settings)), "extract": path_converter(extract),
             "materials": materials}
@@ -699,7 +718,8 @@ class DARKTIDE_OT_fx_import_game_effect(bpy.types.Operator):
     bl_description = "Load one of the game's effects into the editor (replaces the systems here)"
 
     def execute(self, context):
-        from . import _compiler_path, _run_compiler, _wine_tools, _windows_path, prefs
+        from .export import _compiler_path, _run_compiler, _wine_tools, _windows_path
+        from .settings import prefs
         settings = context.object.dt_particles
         extract = bpy.path.abspath(prefs().game_extract_folder.strip())
         if not extract or not os.path.isdir(extract):
@@ -735,7 +755,7 @@ class DARKTIDE_OT_fx_load_materials(bpy.types.Operator):
     bl_description = "List the game's materials the effect draws with, with their values and texture channels"
 
     def execute(self, context):
-        from . import prefs
+        from .settings import prefs
         settings = context.object.dt_particles
         extract = bpy.path.abspath(prefs().game_extract_folder.strip())
         if not extract or not os.path.isdir(extract):
@@ -760,7 +780,8 @@ class DARKTIDE_OT_fx_view_texture(bpy.types.Operator):
     texture: StringProperty()
 
     def execute(self, context):
-        from . import _compiler_path, _run_compiler, _wine_tools, _windows_path, prefs
+        from .export import _compiler_path, _run_compiler, _wine_tools, _windows_path
+        from .settings import prefs
         extract = bpy.path.abspath(prefs().game_extract_folder.strip())
         source = os.path.join(extract, self.texture + ".texture")
         if not os.path.isfile(source):
@@ -1094,7 +1115,7 @@ class DARKTIDE_PT_particle_effect(bpy.types.Panel):
         row = layout.row(align=True)
         row.prop(settings, "effect")
         row.operator(DARKTIDE_OT_fx_import_game_effect.bl_idname, text="Import", icon="IMPORT")
-        from . import prefs
+        from .settings import prefs
         if not prefs().game_extract_folder.strip():
             layout.label(text="Importing game effects needs 'Game files extract' (Darktide tab > Setup)", icon="INFO")
         if settings.systems:
@@ -1156,6 +1177,7 @@ class DARKTIDE_PT_particle_effect(bpy.types.Panel):
                     row.operator(DARKTIDE_OT_fx_view_texture.bl_idname, text=name).texture = texture
             material.prop(item, "values")
             material.prop(item, "textures")
+            material.prop(item, "shader_constants")
 
 
 def draw(layout, obj):

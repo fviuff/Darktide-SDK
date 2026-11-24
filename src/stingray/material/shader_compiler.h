@@ -24,4 +24,11 @@ using RootTable = std::vector<std::uint32_t>;
 bool make_shader_variant(const std::vector<std::uint8_t>& dxbc, RootTable& roots, ShaderVariant& out,
                          std::string& error);
 
+// The parts of a shader_data entry the game derives from the compiled stages of its passes (passes[p][stage], DXBC
+// or empty, stages in ShaderPass order): its resources (constant buffers, textures, buffers, UAVs; samplers have
+// none) in first-bind order with the passes that read / write each, the per-object resource block they lay out,
+// every constant buffer's members, and the bindless texture records (members named __BINDLESS_<kind>_<texture>).
+bool make_shader_data(const std::vector<std::array<std::vector<std::uint8_t>, 6>>& passes, ShaderData& out,
+                      std::string& error);
+
 }

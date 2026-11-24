@@ -4,6 +4,7 @@
 #include "stingray/material/emissive_profile.h"
 #include "stingray/material/mask_profile.h"
 #include "stingray/material/pbr_emissive_profile.h"
+#include "stingray/material/surface_shader.h"
 #include "stingray/material/transparent_profile.h"
 #include "stingray/murmur_hash.h"
 #include "stingray/resource_name.h"
@@ -298,7 +299,8 @@ std::string core_material_gap(const Scene& scene, const MaterialInfo& material) 
         return "unknown surface material";
     if (material.intent == MaterialInfo::Intent::Template)
         return "named Darktide material templates are not supported; use an external material or a game shader";
-    if (material.unlit)
+    const bool own_shader = material.intent == MaterialInfo::Intent::Shader;
+    if (material.unlit && !own_shader)
         return "core material requires a lit substance_basic profile";
     if (material.alpha_mode != "OPAQUE" && material.alpha_mode != "MASK" &&
         material.alpha_mode != "BLEND")
@@ -306,19 +308,21 @@ std::string core_material_gap(const Scene& scene, const MaterialInfo& material) 
     if (material.alpha_mode == "MASK" &&
         (!std::isfinite(material.alpha_cutoff) || material.alpha_cutoff < 0.0f || material.alpha_cutoff > 1.0f))
         return "MASK alpha cutoff must be finite and within [0,1]";
-    if (material.has_clearcoat || material.has_transmission || material.has_volume || material.has_sheen ||
+    // a game shader takes only the material's images; the PBR extensions matter to generated materials
+    const bool game_shader = material.intent == MaterialInfo::Intent::GameShader || own_shader;
+    if (!game_shader && (material.has_clearcoat || material.has_transmission || material.has_volume || material.has_sheen ||
         material.has_specular || material.has_iridescence || material.has_anisotropy ||
-        material.has_diffuse_transmission || material.has_dispersion)
+        material.has_diffuse_transmission || material.has_dispersion))
         return "this KHR_materials_* extension combination has no Darktide material mapping";
-    if (material.has_pbr_specular_glossiness)
+    if (!game_shader && material.has_pbr_specular_glossiness)
         return "KHR_materials_pbrSpecularGlossiness has no Darktide material mapping";
-    if (material.has_ior)
+    if (!game_shader && material.has_ior)
         return "KHR_materials_ior has no Darktide material mapping";
     if (!std::isfinite(material.emissive_strength) || material.emissive_strength < 0.0f ||
         std::any_of(material.emissive.begin(), material.emissive.end(),
                     [](float value) { return !std::isfinite(value) || value < 0.0f; }))
         return "emissive factor and strength must be finite and nonnegative";
-    if (material.alpha_mode == "MASK" && material.emissive_strength > 0.0f &&
+    if (!own_shader && material.alpha_mode == "MASK" && material.emissive_strength > 0.0f &&
         std::any_of(material.emissive.begin(), material.emissive.end(), [](float value) { return value > 0.0f; }))
         return "alpha-masked materials cannot also emit light";
     const bool emits = material.emissive_strength > 0.0f &&
@@ -838,6 +842,69 @@ bool build_game_shader_material(const Scene& scene, const MaterialInfo& material
 }
 }
 
+// A shader of the asset's own (Shader intent): the surface function compiled into a shader material stream, and the
+// material the meshes use naming it as its shader, with the parameter values and textures by name.
+bool build_own_shader_material(const Scene& scene, const MaterialInfo& material, const CompilationContext& context,
+                               const std::string& stem, const std::string& slot, ResourceGraph& graph,
+                               std::vector<std::pair<std::string, std::string>>& bindings, std::string& error) {
+    stingray::material::SurfaceShaderSpec spec;
+    spec.code = material.shader_code;
+    for (const auto& [name, value] : material.shader_parameters) spec.parameters.push_back({name, value});
+    for (const auto& [name, source] : material.shader_textures) spec.textures.push_back(name);
+    spec.alpha_clip = material.shader_alpha_clip >= 0.0f;
+    spec.alpha_cutoff = material.shader_alpha_clip;
+    spec.double_sided = material.double_sided;
+    spec.decal = material.shader_decal;
+    const auto shader_key = context.generated_key("material", stem + "_shader");
+    stingray::material::MaterialStream shader;
+    if (!stingray::material::build_surface_shader(spec, stingray::resource_name_hash(shader_key.name), shader, error)) {
+        error = "material " + material.name + ": " + error;
+        return false;
+    }
+    graph.owned.push_back({shader_key, stem + "_shader.material", std::move(shader), {}});
+
+    std::vector<ResourceKey> dependencies{shader_key};
+    stingray::material::InheritedMaterialSpec child;
+    child.shader_provider_material_hash = stingray::resource_name_hash(shader_key.name);
+    child.surface_material = material.surface_material;
+    if (!material.shader_textures.empty()) {
+        std::array<stingray::texture::ImageRGBA, 4> images;
+        if (!prepare_core_images(scene, material, images, error, true, true)) return false;
+        for (const auto& [name, source] : material.shader_textures) {
+            const std::size_t image = source == "base_color" ? 0 : source == "emissive" ? 1 : source == "normal" ? 2 : 3;
+            const auto& profile = source == "base_color" ? stingray::texture::substance_basic_bca_profile()
+                                : source == "emissive"   ? stingray::texture::pbr_emissive_em_profile()
+                                : source == "normal"     ? stingray::texture::substance_basic_nm_profile()
+                                                         : stingray::texture::substance_basic_orm_profile();
+            const auto texture_stem = stem + "_" + source;
+            const auto key = context.generated_key("texture", texture_stem);
+            if (std::none_of(graph.owned.begin(), graph.owned.end(), [&](const auto& node) { return node.key == key; }))
+                graph.owned.push_back({key, texture_stem + ".texture", TextureResource{images[image], profile}, {}});
+            child.textures.push_back({stingray::id32_from_id64(name), stingray::resource_name_hash(key.name)});
+            if (std::find(dependencies.begin(), dependencies.end(), key) == dependencies.end()) dependencies.push_back(key);
+        }
+    }
+    for (const auto& [name, value] : material.shader_parameters) {
+        stingray::material::Variable variable;
+        variable.klass = static_cast<std::uint32_t>(value.size() - 1);
+        variable.name_hash = stingray::id32_from_id64(name);
+        variable.data_offset = static_cast<std::uint32_t>(child.variable_data.size());
+        for (const float v : value) {
+            if (!std::isfinite(v)) { error = "material " + material.name + ": parameter " + name + " must be finite"; return false; }
+            std::uint8_t bytes[4];
+            std::memcpy(bytes, &v, 4);
+            child.variable_data.insert(child.variable_data.end(), bytes, bytes + 4);
+        }
+        child.variables.push_back(variable);
+    }
+    stingray::material::MaterialStream resource;
+    if (!stingray::material::build_inherited_material(child, resource, error)) return false;
+    const auto key = context.generated_key("material", stem);
+    graph.owned.push_back({key, stem + ".material", std::move(resource), std::move(dependencies)});
+    bindings.push_back({slot, key.name});
+    return true;
+}
+
 bool own_game_shader_material(const CompilationContext& context, ResourceGraph& graph, std::uint64_t hash,
                               const std::filesystem::path& stream, std::uint64_t expected_parent,
                               const ResourceKey* owned_parent, ResourceKey& out, std::string& error,
@@ -1064,6 +1131,12 @@ bool build_core_materials(const Scene& scene, const CompilationContext& context,
         }
         if (material.intent == MaterialInfo::Intent::GameShader) {
             if (!build_game_shader_material(scene, material, context,
+                    context.file_base() + "_material_" + std::to_string(i), slot,
+                    graph, bindings, error)) return false;
+            continue;
+        }
+        if (material.intent == MaterialInfo::Intent::Shader) {
+            if (!build_own_shader_material(scene, material, context,
                     context.file_base() + "_material_" + std::to_string(i), slot,
                     graph, bindings, error)) return false;
             continue;

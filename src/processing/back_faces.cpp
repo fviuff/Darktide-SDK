@@ -28,7 +28,9 @@ std::size_t add_back_faces(Scene& scene, std::string& error) {
     std::vector<Primitive> back_faces;
     for (const auto& primitive : scene.primitives) {
         if (primitive.material < 0 || static_cast<std::size_t>(primitive.material) >= scene.materials.size() ||
-            !scene.materials[static_cast<std::size_t>(primitive.material)].double_sided)
+            !scene.materials[static_cast<std::size_t>(primitive.material)].double_sided ||
+            // an own shader draws both sides itself (no culling, the normal flipped on back faces)
+            scene.materials[static_cast<std::size_t>(primitive.material)].intent == MaterialInfo::Intent::Shader)
             continue;
         if (primitive.mode != 4 || primitive.indices.size() % 3 != 0) {
             error = "double-sided primitive '" + primitive.name + "' is not a triangle list";

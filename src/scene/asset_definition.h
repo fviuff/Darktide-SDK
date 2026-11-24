@@ -146,7 +146,15 @@ struct RenderSetting {
     bool shadow = true;
 };
 
+// A node whose subtree becomes a unit of its own next to the main one (same build, shared materials and
+// textures), named <asset directory>/<name>. The loader detaches it and puts its root at the origin.
+struct PartDefinition {
+    std::string name;
+    int source_node = -1;
+};
+
 struct AssetDefinition {
+    std::vector<PartDefinition> parts;
     std::optional<BodyDefinition> body;
     std::vector<ColliderDefinition> colliders;
     std::vector<BodyDefinition> node_bodies;
@@ -162,6 +170,9 @@ struct AssetDefinition {
     std::vector<LightSettings> light_settings;
     std::string flow;   // authored unit flow graph (JSON, stingray/flow/flow_authoring.h), empty = none
     std::string script_data;   // Unit.get_data values (JSON object, stingray/unit/script_data.h), empty = none
+    // every authored flow and unit data with the node that carried it: one per unit of the build (parts have
+    // their own); flow and script_data above are the main unit's
+    std::vector<std::pair<int, std::string>> unit_flows, unit_script_data;
     // textures shipped for scripts (compiler/loose_textures.h): JSON list of {name, image, kind, like, extract}
     std::string loose_textures;
 };

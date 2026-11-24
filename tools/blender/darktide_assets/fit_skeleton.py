@@ -1229,7 +1229,8 @@ class DARKTIDE_OT_new_starter_asset(bpy.types.Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        from . import _new_asset_collection, _reference_armature
+        from .operators import _new_asset_collection
+        from .export import _reference_armature
         scene = context.scene
         try:
             collection = _new_asset_collection(context, set())

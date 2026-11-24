@@ -2,6 +2,7 @@
 
 #include "compiler/material_builder.h"
 #include "stingray/cooked_resource.h"
+#include "stingray/material/dxil_constants.h"
 #include "stingray/material/material_v61.h"
 #include "stingray/material/shader_section.h"
 #include "stingray/murmur_hash.h"
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -253,9 +255,15 @@ ShaderTrim billboard_trim(const BillboardUses* uses) {
     };
 }
 
+struct ShaderConstantEdits {
+    const std::map<std::uint32_t, std::uint32_t>& edits;
+    std::set<std::uint32_t> matched;
+};
+
 // a shader provider/parent and the parents above it, as owned copies; trimmed to the billboards that use them
 bool own_shader_chain(const CompilationContext& context, ResourceGraph& graph, const GameFiles& game,
-                      std::uint64_t hash, ResourceKey& out, std::string& error, const BillboardUses* uses) {
+                      std::uint64_t hash, ResourceKey& out, std::string& error, const BillboardUses* uses,
+                      ShaderConstantEdits* constants) {
     fs::path path;
     std::vector<std::uint8_t> bytes;
     if (!game.material_stream(hash, path, error) || !read_file(path, bytes, error)) return false;
@@ -263,11 +271,16 @@ bool own_shader_chain(const CompilationContext& context, ResourceGraph& graph, c
     std::uint64_t parent = 0;
     std::memcpy(&parent, bytes.data() + u32(bytes, 4) + 12, 8);
     ResourceKey owned_parent;
-    if (parent && !own_shader_chain(context, graph, game, parent, owned_parent, error, uses)) return false;
+    if (parent && !own_shader_chain(context, graph, game, parent, owned_parent, error, uses, constants)) return false;
+    const auto trim = billboard_trim(uses);
     return own_game_shader_material(context, graph, hash, path, parent, parent ? &owned_parent : nullptr, out, error,
         [&](std::uint64_t texture, ResourceKey& key, std::string& texture_error) {
             return own_texture(context, graph, game, texture, key, texture_error);
-        }, billboard_trim(uses));
+        }, [&](std::vector<std::uint8_t>& stream, std::string& trim_error) {
+            return (!trim || trim(stream, trim_error)) &&
+                   (!constants || stingray::material::patch_stream_float_constants(stream, constants->edits,
+                                                                                    constants->matched, trim_error));
+        });
 }
 
 bool own_particle_material(const CompilationContext& context, ResourceGraph& graph, const GameFiles& game,
@@ -352,13 +365,34 @@ bool own_particle_material(const CompilationContext& context, ResourceGraph& gra
         bytes = std::move(edited);
     }
     if (const auto trim = billboard_trim(uses); trim && !trim(bytes, error)) return false;   // a section of its own
+    std::optional<ShaderConstantEdits> constants;
+    if (edit && !edit->shader_constants.empty()) {
+        constants.emplace(ShaderConstantEdits{edit->shader_constants, {}});
+        if (!stingray::material::patch_stream_float_constants(bytes, constants->edits, constants->matched, error)) {
+            error = where + ": " + error;
+            return false;
+        }
+    }
     stingray::material::MaterialDependencyHashes hashes;
     if (!stingray::material::validate_preserved_material_v61(bytes, hashes, error)) return false;
     ResourceKey owned_provider, owned_parent;
+    ShaderConstantEdits* chain_constants = constants ? &*constants : nullptr;
     if (hashes.shader_provider_material_hash &&
-        !own_shader_chain(context, graph, game, hashes.shader_provider_material_hash, owned_provider, error, uses)) return false;
+        !own_shader_chain(context, graph, game, hashes.shader_provider_material_hash, owned_provider, error, uses,
+                          chain_constants)) return false;
     if (hashes.parent_material_hash &&
-        !own_shader_chain(context, graph, game, hashes.parent_material_hash, owned_parent, error, uses)) return false;
+        !own_shader_chain(context, graph, game, hashes.parent_material_hash, owned_parent, error, uses,
+                          chain_constants)) return false;
+    if (constants)
+        for (const auto& [from, to] : constants->edits)
+            if (!constants->matched.count(from)) {
+                float value;
+                std::memcpy(&value, &from, 4);
+                char text[32];
+                std::snprintf(text, sizeof(text), "%.9g", value);
+                error = where + ": its shader code has no constant " + text;
+                return false;
+            }
     const std::size_t section = u32(bytes, 4);
     const std::uint64_t provider = hashes.shader_provider_material_hash ? stingray::resource_name_hash(owned_provider.name) : 0;
     const std::uint64_t parent = hashes.parent_material_hash ? stingray::resource_name_hash(owned_parent.name) : 0;
@@ -375,7 +409,8 @@ bool own_particle_material(const CompilationContext& context, ResourceGraph& gra
 }
 // the unit a mesh particle draws: its body copied, its materials pointed at owned copies (with the effect's edits)
 bool own_mesh_unit(const CompilationContext& context, ResourceGraph& graph, const GameFiles& game, std::uint64_t hash,
-                   const std::map<std::uint64_t, ParticleMaterialEdit>& edits, ResourceKey& out, std::string& error) {
+                   const std::map<std::uint64_t, ParticleMaterialEdit>& edits, ResourceKey& out, std::string& error,
+                   std::set<std::uint64_t>& unit_materials) {
     std::vector<std::uint8_t> body;
     std::string stream;
     if (!game.resource(hash, "unit", body, stream, error)) return false;
@@ -396,6 +431,7 @@ bool own_mesh_unit(const CompilationContext& context, ResourceGraph& graph, cons
         const auto edit = edits.find(material_hash);
         if (!own_particle_material(context, graph, game, material_hash, edit == edits.end() ? nullptr : &edit->second,
                                    material, error)) return false;
+        unit_materials.insert(material_hash);
         const auto owned = stingray::resource_name_hash(material.name);
         for (const auto offset : offsets) std::memcpy(body.data() + offset, &owned, 8);
         dependencies.push_back(material);
@@ -518,12 +554,13 @@ bool build_particle_effects(const Scene& scene, const CompilationContext& contex
         const auto where = "particle effect '" + effect.name + "'";
         // every game material and unit the effect names is shipped as an owned copy
         std::map<std::uint64_t, ResourceKey> owned;
+        std::set<std::uint64_t> unit_materials;
         std::vector<ResourceKey> dependencies;
         for (const auto& reference : stingray::particles::resource_references(description)) {
             if (owned.count(reference.id)) continue;
             ResourceKey key;
             if (reference.type == "unit") {
-                if (!game.units.count(reference.id) || !own_mesh_unit(context, graph, game, reference.id, effect.materials, key, error)) {
+                if (!game.units.count(reference.id) || !own_mesh_unit(context, graph, game, reference.id, effect.materials, key, error, unit_materials)) {
                     if (!game.units.count(reference.id)) error = "the game has no unit " + hex16(reference.id);
                     error = where + ": " + error;
                     return false;
@@ -544,7 +581,7 @@ bool build_particle_effects(const Scene& scene, const CompilationContext& contex
             dependencies.push_back(key);
         }
         for (const auto& edited : effect.materials)
-            if (!owned.count(edited.first)) {
+            if (!owned.count(edited.first) && !unit_materials.count(edited.first)) {
                 error = where + " does not use material " + hex16(edited.first);
                 return false;
             }

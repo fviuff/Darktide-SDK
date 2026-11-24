@@ -27,6 +27,20 @@
   "in_events": [],
   "out_events": ["enter", "leave"]
  },
+ "actor_contact": {
+  "inputs": {},
+  "outputs": {
+   "actor": "actor",
+   "other_actor": "actor",
+   "other_unit": "unit",
+   "position": "vector3",
+   "normal": "vector3",
+   "separation": "float",
+   "impulse": "vector3"
+  },
+  "in_events": [],
+  "out_events": ["start", "stay", "end"]
+ },
  "particle_effect": {
   "inputs": {
    "effect": "string",

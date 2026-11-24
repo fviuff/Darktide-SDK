@@ -1,4 +1,5 @@
 #pragma once
+#include "stingray/oodle.h"
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -54,16 +55,7 @@ bool normalize_image_for_family(const ImageRGBA& source, ImageRGBA& out, bool& c
 
 std::string make_texture_stream_name(const std::string& resource_name);
 
-bool configure_oodle(const std::filesystem::path& dll_or_game_directory, std::string& error);
 
-// Oodle Kraken compression with the game's DLL (checked by unpacking it again).
-bool oodle_compress(const std::vector<std::uint8_t>& input, std::vector<std::uint8_t>& packed, std::string& error);
-// Oodle decompression with the game's DLL; output is sized to the unpacked size beforehand.
-bool oodle_decompress(const std::vector<std::uint8_t>& packed, std::vector<std::uint8_t>& output, std::string& error);
-
-// The Darktide install (DARKTIDE_GAME_ROOT, else from the configured Oodle DLL, else the default Steam folder).
-// Empty when unknown. Retail shader materials are read from <root>/bundle at compile time.
-std::filesystem::path game_root();
 
 bool write_native_texture_rgba(
     const ImageRGBA& source,
@@ -89,6 +81,9 @@ bool inspect_texture_blob(const std::vector<std::uint8_t>& blob, std::string& re
 // The largest mip a game texture body holds itself (the streamed mips live in a separate file), as 8-bit RGBA
 // holding the stored values (sRGB formats stay sRGB encoded; *srgb says which).
 bool texture_body_image(const std::vector<std::uint8_t>& body, ImageRGBA& out, std::string& error, bool* srgb = nullptr);
+// one mip's stored blocks/pixels (DXGI format) as RGBA8, sRGB bytes kept
+bool mip_image(std::uint32_t dxgi_format, std::uint32_t width, std::uint32_t height, const std::vector<std::uint8_t>& data,
+               ImageRGBA& out, std::string& error);
 
 bool write_png(const ImageRGBA& image, const std::filesystem::path& path, std::string& error);
 

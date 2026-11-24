@@ -92,7 +92,7 @@ struct TextureBinding {
 };
 
 struct MaterialInfo {
-    enum class Intent { Generated, Emissive, External, Template, Donor, GameShader };
+    enum class Intent { Generated, Emissive, External, Template, Donor, GameShader, Shader };
     std::string name;
     Intent intent = Intent::Generated;
     std::string external_resource;
@@ -107,6 +107,13 @@ struct MaterialInfo {
     // (name or #hex -> base_color | normal | orm | emissive glTF image) replaced.
     std::map<std::string, std::vector<float>> shader_variables;
     std::map<std::string, std::string> shader_textures;
+    // Shader: the asset's own HLSL surface function, its parameters (name -> 1..4 floats), textures
+    // (shader_textures: name -> glTF image slot) and the opacity it clips at (negative: no clipping); double sided
+    // comes from the glTF material.
+    std::string shader_code;
+    std::map<std::string, std::vector<float>> shader_parameters;
+    float shader_alpha_clip = -1.0f;
+    bool shader_decal = false;  // the code draws as a projection decal from the mesh's box
     // Retail shader provider/parent material hash -> stream file, shipped as owned copies.
     std::map<std::uint64_t, std::string> shader_streams;
     std::array<float, 4> base_color{1, 1, 1, 1};
@@ -397,6 +404,8 @@ struct SourceFeatureInventory {
 struct ParticleMaterialEdit {
     std::map<std::string, std::vector<float>> variables; // name or #hex -> 1..4 floats
     std::map<std::string, std::string> textures;          // channel name or #hex -> image file
+    // shader code float constants to replace, as float32 bits
+    std::map<std::uint32_t, std::uint32_t> shader_constants;
 };
 struct ParticleEffectDefinition {
     std::string name;        // resource name inside the asset's folder

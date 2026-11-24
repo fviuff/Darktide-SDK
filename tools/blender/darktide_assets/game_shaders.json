@@ -1397,6 +1397,218 @@
      ]
     }
    ]
+  },
+  {
+   "id": "substance_skin_minion",
+   "label": "Enemy skin (shows the game's wounds)",
+   "shader": "content/parent_materials/substance_skin_minion",
+   "stream": "data/1f/1fe2ad47235b4839",
+   "shader_streams": {
+    "ee3128ba87ca7455": "data/7f/7f17d42421a43450",
+    "4399c390d6da998b": "data/b2/b250a66edd2382b7"
+   },
+   "textures": [
+    "effect_gradient",
+    "effect_mask",
+    "environment_noise_map",
+    "tatoo_mask",
+    "wound_shape",
+    "bcm",
+    "nm",
+    "orm"
+   ],
+   "variables": [
+    {
+     "name": "emissive_color_intensity",
+     "floats": 4,
+     "default": [
+      0.03,
+      0.0,
+      0.457,
+      489.0
+     ]
+    },
+    {
+     "name": "environment_mask",
+     "floats": 3,
+     "default": [
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "environment_mask_properties",
+     "floats": 4,
+     "default": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "hsv_skin",
+     "floats": 3,
+     "default": [
+      0.0,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "name": "rgb_tatoo",
+     "floats": 4,
+     "default": [
+      0.0,
+      0.285,
+      0.294,
+      0.1
+     ]
+    },
+    {
+     "name": "wound_color_brightness_01",
+     "floats": 2,
+     "default": [
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "offset_time_duration",
+     "floats": 3,
+     "default": [
+      0.0,
+      0.0,
+      -10.0
+     ]
+    },
+    {
+     "name": "wound_color_brightness_02",
+     "floats": 2,
+     "default": [
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "wound_color_brightness_03",
+     "floats": 2,
+     "default": [
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "wound_03_shape",
+     "floats": 2,
+     "default": [
+      0.75,
+      0.75
+     ]
+    },
+    {
+     "name": "wound_01_shape",
+     "floats": 2,
+     "default": [
+      0.75,
+      0.75
+     ]
+    },
+    {
+     "name": "wound_radius_01",
+     "floats": 3,
+     "default": [
+      1.0,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "name": "wound_position_03",
+     "floats": 3,
+     "default": [
+      -1.0,
+      -1.0,
+      -1.0
+     ]
+    },
+    {
+     "name": "wound_position_02",
+     "floats": 3,
+     "default": [
+      -1.0,
+      -1.0,
+      -1.0
+     ]
+    },
+    {
+     "name": "wound_position_01",
+     "floats": 3,
+     "default": [
+      -1.0,
+      -1.0,
+      -1.0
+     ]
+    },
+    {
+     "name": "wound_shape_scaling_01",
+     "floats": 3,
+     "default": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "wound_02_shape",
+     "floats": 2,
+     "default": [
+      0.75,
+      0.75
+     ]
+    },
+    {
+     "name": "is_circumstance_emissive",
+     "floats": 1,
+     "default": [
+      0.0
+     ]
+    },
+    {
+     "name": "stimmed_color",
+     "floats": 3,
+     "default": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "wound_color_time_duration_01",
+     "floats": 2,
+     "default": [
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "wound_color_time_duration_02",
+     "floats": 2,
+     "default": [
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "wound_color_time_duration_03",
+     "floats": 2,
+     "default": [
+      0.0,
+      1.0
+     ]
+    }
+   ]
   }
  ]
 }
