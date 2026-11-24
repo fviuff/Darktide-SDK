@@ -629,6 +629,7 @@ class DARKTIDE_PT_material(_SidebarPanel, bpy.types.Panel):
                 line = box.row(align=True)
                 line.prop(row, "name", text="")
                 line.prop(row, "source", text="")
+                line.prop(row, "runtime", text="", icon="SCRIPT")
                 remove = line.operator(DARKTIDE_OT_own_shader_row.bl_idname, text="", icon="X")
                 remove.kind, remove.index = "texture", index
             add = box.operator(DARKTIDE_OT_own_shader_row.bl_idname, text="Add Texture", icon="ADD")

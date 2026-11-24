@@ -25,6 +25,9 @@ struct SurfaceShaderSpec {
     std::string code;                            // HLSL defining surface()
     std::vector<SurfaceParameter> parameters;
     std::vector<std::string> textures;           // sampled in the code as sample_<name>(uv)
+    // textures mods replace in game (Material.set_resource): bound as plain textures like the game's render target
+    // slots, since a texture made at runtime has no streaming data for the bindless path
+    std::vector<std::string> runtime_textures;
     bool alpha_clip = false;                     // discard where s.opacity < alpha_cutoff (G-buffer and shadow)
     float alpha_cutoff = 0.5f;
     bool double_sided = false;                   // no back-face culling; back faces see the flipped normal

@@ -528,13 +528,18 @@ std::string float_text(float v) {
 
 // the per-object constant buffer of a pass: bindless texture members, the engine's matrices, the material's
 // parameters (the engine fills each member by name)
+bool runtime_texture(const SurfaceShaderSpec& spec, const std::string& name) {
+    return std::find(spec.runtime_textures.begin(), spec.runtime_textures.end(), name) != spec.runtime_textures.end();
+}
+
 std::string object_cbuffer(const SurfaceShaderSpec& spec, bool depth_only) {
     std::ostringstream s;
     s << "cbuffer " << (depth_only ? "c_depth_only" : "c_per_object") << "\n{\n";
     if (!depth_only || spec.alpha_clip)
         for (const auto& t : spec.textures)
-            s << "    uint __BINDLESS_SAMPLER_" << t << ";\n    uint2 __BINDLESS_TEX2D_" << t << ";\n    uint2 __BINDLESS_MINLOD_"
-              << t << ";\n";
+            if (!runtime_texture(spec, t))
+                s << "    uint __BINDLESS_SAMPLER_" << t << ";\n    uint2 __BINDLESS_TEX2D_" << t
+                  << ";\n    uint2 __BINDLESS_MINLOD_" << t << ";\n";
     if (spec.decal) {
         // the engine fills inv_world and the box (rows: min, max, size) for every decal
         s << "    float4x4 world_view_proj;\n    float4x4 world;\n    float4x4 inv_world;\n    float4x4 bounding_volume;\n";
@@ -547,9 +552,19 @@ std::string object_cbuffer(const SurfaceShaderSpec& spec, bool depth_only) {
             s << "    float" << (p.value.size() > 1 ? std::to_string(p.value.size()) : std::string()) << " " << p.name << ";\n";
     s << "};\n";
     if (depth_only && !spec.alpha_clip) return s.str();
-    for (const auto& t : spec.textures)
-        s << "float4 sample_" << t << "(float2 uv) { return dt_sample(__BINDLESS_SAMPLER_" << t << ", __BINDLESS_TEX2D_" << t
-          << ", __BINDLESS_MINLOD_" << t << ", uv); }\n";
+    // plain registers after the ones the stages use (bones t0-t1, the decal's engine textures t0-t2 / s0-s2)
+    int slot = 3;
+    for (const auto& t : spec.textures) {
+        if (runtime_texture(spec, t)) {
+            s << "Texture2D<float4> __tex_" << t << " : register(t" << slot << ");\nSamplerState __samp_" << t
+              << " : register(s" << slot << ");\nfloat4 sample_" << t << "(float2 uv) { return __tex_" << t << ".Sample(__samp_"
+              << t << ", uv); }\n";
+            ++slot;
+        } else {
+            s << "float4 sample_" << t << "(float2 uv) { return dt_sample(__BINDLESS_SAMPLER_" << t << ", __BINDLESS_TEX2D_"
+              << t << ", __BINDLESS_MINLOD_" << t << ", uv); }\n";
+        }
+    }
     return s.str();
 }
 
@@ -607,6 +622,9 @@ bool build_surface_shader(const SurfaceShaderSpec& spec, std::uint64_t own_name,
         if (!identifier(t) || reserved.count(t) || reserved.count("sample_" + t) || !names.insert(t).second)
             { error = "shader texture '" + t + "' needs its own plain name (letters, digits, _) not used by the game"; return false; }
     }
+    for (const auto& t : spec.runtime_textures)
+        if (std::find(spec.textures.begin(), spec.textures.end(), t) == spec.textures.end())
+            { error = "runtime texture " + t + " is not one of the shader's textures"; return false; }
     if (spec.code.find("surface") == std::string::npos) { error = "the shader code has no surface function"; return false; }
 
     struct Variant { std::uint32_t name; std::uint32_t context; bool skinned; bool depth_only; };

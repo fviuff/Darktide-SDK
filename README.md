@@ -126,6 +126,8 @@ void surface(SurfaceInput i, inout Surface s)
 
 It's lit, casts shadows, works on skinned meshes and the textures stream in like the game's own. Parameters can be changed from your mod while the unit is out there, by their name: `Unit.set_scalar_for_materials(unit, "band_speed", 2, true)`, `Unit.set_vector3_for_materials(unit, "tint", Vector3(1, 0, 0), true)`.
 
+Swapping a texture from your mod: tick the script button on that texture's row. Your mod can then put another texture there in game with `Material.set_resource(Mesh.material(Unit.mesh(unit, 1), 1), "color", texture)`, for example one it made with `Renderer.create_resource_from_file`. The image you picked is what it shows until then. A ticked texture doesn't stream, so keep it small.
+
 Texture transforms: offsets, 90 degree turns and flips are fine, fractional scaling and odd rotations are not.
 
 ### Decals

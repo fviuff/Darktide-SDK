@@ -1557,7 +1557,7 @@ MaterialInfo convert_material(const cgltf_data* data, const cgltf_material& sour
     material.name = source.name ? source.name : "material_" + std::to_string(index);
     if (const auto payload = authored_payload(data, source.extras, "darktide_material")) {
         const std::string location = "material[" + std::to_string(index) + "].extras.darktide_material";
-        const auto members = authored_members(*payload, location, {"version", "mode", "resource", "template", "surface", "family", "stream", "variable_overrides", "variables", "textures", "shader_streams", "weapon", "code", "parameters", "alpha_clip", "decal"});
+        const auto members = authored_members(*payload, location, {"version", "mode", "resource", "template", "surface", "family", "stream", "variable_overrides", "variables", "textures", "shader_streams", "weapon", "code", "parameters", "runtime_textures", "alpha_clip", "decal"});
         authored_version(members, location, "darktide_material");
         const auto mode = authored_string(members, "mode", location);
         if (mode == "generated") {
@@ -1645,7 +1645,7 @@ MaterialInfo convert_material(const cgltf_data* data, const cgltf_material& sour
             if (members.count("resource") || members.count("template") || members.count("family") ||
                 members.count("stream") || members.count("variable_overrides") || members.count("variables") ||
                 members.count("shader_streams"))
-                throw std::runtime_error(location + ": shader mode takes code, parameters, textures, alpha_clip, decal and surface");
+                throw std::runtime_error(location + ": shader mode takes code, parameters, textures, runtime_textures, alpha_clip, decal and surface");
             material.intent = MaterialInfo::Intent::Shader;
             material.shader_code = authored_string(members, "code", location);
             if (const auto decal = members.find("decal"); decal != members.end()) {
@@ -1669,6 +1669,15 @@ MaterialInfo convert_material(const cgltf_data* data, const cgltf_material& sour
                     if (slot != "base_color" && slot != "normal" && slot != "orm" && slot != "emissive")
                         throw std::runtime_error(location + ".textures." + key + ": use base_color, normal, orm or emissive");
                     material.shader_textures.emplace(key, slot);
+                }
+            }
+            if (const auto runtime = members.find("runtime_textures"); runtime != members.end()) {
+                for (const auto& [key, value] : authored_members(runtime->second, location + ".runtime_textures", {})) {
+                    if (value != "true" && value != "false")
+                        throw std::runtime_error(location + ".runtime_textures." + key + ": must be true or false");
+                    if (!material.shader_textures.count(key))
+                        throw std::runtime_error(location + ".runtime_textures." + key + ": not one of the textures");
+                    if (value == "true") material.shader_runtime_textures.insert(key);
                 }
             }
             material.surface_material = authored_string(members, "surface", location, "default");

@@ -605,6 +605,9 @@ class DarktideOwnShaderTexture(bpy.types.PropertyGroup):
     """A texture an own shader samples as sample_<name>(uv)."""
     source: EnumProperty(name="Image", items=_TEXTURE_SOURCES[1:], default="base_color",
                          description="Which of this material's images it is")
+    runtime: BoolProperty(name="Set by Mods", default=False,
+                          description="Mods replace this texture in game with Material.set_resource (for example with "
+                                      "a texture made by Renderer.create_resource_from_file); the image is its default")
 
 
 OWN_SHADER_TEMPLATE = """// Your own shader. Fill s from the inputs; leave out what you don't change.
@@ -628,7 +631,7 @@ def own_shader_extras(settings, material_name):
     if text is None or not text.as_string().strip():
         raise ValueError("Material " + material_name + ": pick the text with its shader code (New Shader Code makes one)")
     names = set()
-    parameters, textures = {}, {}
+    parameters, textures, runtime = {}, {}, {}
     for row in settings.own_parameters:
         name = row.name.strip()
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) or name in names:
@@ -642,7 +645,11 @@ def own_shader_extras(settings, material_name):
             raise ValueError("Material " + material_name + ": texture names need letters, digits and _ and must differ ('" + name + "')")
         names.add(name)
         textures[name] = row.source
+        if row.runtime:
+            runtime[name] = True
     extras = {"code": text.as_string(), "parameters": parameters, "textures": textures}
+    if runtime:
+        extras["runtime_textures"] = runtime
     if settings.own_clip:
         extras["alpha_clip"] = settings.own_cutoff
     if settings.own_decal:

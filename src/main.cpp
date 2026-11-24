@@ -1611,7 +1611,7 @@ int main(int argc, char** argv) {
     }
     if (std::string(argv[1]) == "--surface-shader") {
         // builds an own shader material stream from {code | code_file, parameters {name: [floats]}, textures [names],
-        // alpha_clip, alpha_cutoff, double_sided} and prints its shader section summary
+        // runtime_textures [names], alpha_clip, alpha_cutoff, double_sided} and prints its shader section summary
         if (argc != 4) { usage(); return 1; }
         std::ifstream file(argv[2], std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -1634,6 +1634,8 @@ int main(int argc, char** argv) {
                 }
             if (const auto* textures = spec_json.find("textures"))
                 for (const auto& item : textures->items) spec.textures.push_back(item.string);
+            if (const auto* runtime = spec_json.find("runtime_textures"))
+                for (const auto& item : runtime->items) spec.runtime_textures.push_back(item.string);
             if (const auto* clip = spec_json.find("alpha_clip")) spec.alpha_clip = clip->boolean;
             if (const auto* cutoff = spec_json.find("alpha_cutoff")) spec.alpha_cutoff = static_cast<float>(cutoff->number);
             if (const auto* sides = spec_json.find("double_sided")) spec.double_sided = sides->boolean;

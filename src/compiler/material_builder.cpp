@@ -851,6 +851,7 @@ bool build_own_shader_material(const Scene& scene, const MaterialInfo& material,
     spec.code = material.shader_code;
     for (const auto& [name, value] : material.shader_parameters) spec.parameters.push_back({name, value});
     for (const auto& [name, source] : material.shader_textures) spec.textures.push_back(name);
+    spec.runtime_textures.assign(material.shader_runtime_textures.begin(), material.shader_runtime_textures.end());
     spec.alpha_clip = material.shader_alpha_clip >= 0.0f;
     spec.alpha_cutoff = material.shader_alpha_clip;
     spec.double_sided = material.double_sided;

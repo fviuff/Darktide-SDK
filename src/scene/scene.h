@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -112,6 +113,7 @@ struct MaterialInfo {
     // comes from the glTF material.
     std::string shader_code;
     std::map<std::string, std::vector<float>> shader_parameters;
+    std::set<std::string> shader_runtime_textures;  // of shader_textures: replaced by mods in game
     float shader_alpha_clip = -1.0f;
     bool shader_decal = false;  // the code draws as a projection decal from the mesh's box
     // Retail shader provider/parent material hash -> stream file, shipped as owned copies.
